@@ -1,25 +1,7 @@
-{% extends "base.html" %}
-{% from "macros.html" import estado_badge %}
-{% from "includes/_modais_assinatura.html" import sig_preview, sig_captura, sig_recebido_preview %}
-{% block title %}Nota {{ nota.numero_documento }}{% endblock %}
-{% block heading %}Nr. Ref. {{ nota.numero_documento }}{% endblock %}
-{% block subtitle %}{{ nota.numero_referencia }} · {{ nota.data_emissao | formatar_data }}{% endblock %}
-
-{% block extra_head %}
-<link href="https://fonts.googleapis.com/css2?family=Tinos:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-{% endblock %}
-
-{# Fora de qualquer {% block %} de propósito: em Jinja2, variáveis definidas
-   dentro de um bloco não ficam visíveis noutro bloco irmão (ex.: extra_js
-   não veria o que fosse definido dentro de content) — aqui ficam partilhadas
-   pelos dois. #}
-{% set _recolher_entrega = nota.estado in ['rascunho', 'rejeitada', 'em_revisao'] %}
-{% set _recolher_recebido = nota.pode_recolher_recebido(current_user) %}
-
-{% block content %}
-{% include "includes/_nota_detalhe_conteudo.html" %}
-{% endblock %}
-
-{% block extra_js %}
-{% include "includes/_nota_detalhe_extra_js.html" %}
-{% endblock %}
+{# Este ficheiro é intencionalmente idêntico a notas/detalhe.html — o
+   fluxo de "entrega" reutiliza a mesma página de detalhe da nota. Em
+   vez de duplicar o conteúdo, herdamos diretamente do template canónico.
+   O request.blueprint continua a resolver dinamicamente para "entrega"
+   quando esta página é servida pelo blueprint de entrega, por isso os
+   links/formulários (ex.: .apagar, .detalhe) continuam corretos. #}
+{% extends "notas/detalhe.html" %}
