@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block heading %}{{ titulo }}{% endblock %}
+{% block subtitle %}Este campo aparece na secção «Campos adicionais» do formulário escolhido abaixo.{% endblock %}
+
+{% block content %}
+<div class="panel" style="max-width:640px">
+    <form method="post" novalidate id="formCampoDinamico">
+        {{ form.hidden_tag() }}
+        {{ form.opcoes(hidden=true, id="camposOpcoesReal") }}
+
+        <div class="mb-3">
+            {{ form.rotulo.label(class="form-label") }}
+            {{ form.rotulo(class="form-control form-control-lg" + (" is-invalid" if form.rotulo.errors else ""), placeholder="Ex.: Nº de Patrimônio TI") }}
+            {% for erro in form.rotulo.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                {{ form.tipo.label(class="form-label") }}
+                {{ form.tipo(class="form-select", id="campoTipo") }}
+            </div>
+            <div class="col-md-6">
+                {{ form.nome.label(class="form-label") }}
+                {{ form.nome(class="form-control" + (" is-invalid" if form.nome.errors else ""), placeholder="ex.: patrimonio_ti") }}
+                {% for erro in form.nome.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                <small class="text-muted">Identificador interno — só letras, números e underscore.</small>
+            </div>
+        </div>
+
+        <div class="mb-3" id="wrapOpcoes" hidden>
+            <label class="form-label">Opções</label>
+            <div id="opcoesLista"></div>
+            <button type="button" class="btn btn-sm btn-outline-navy" id="btnAddOpcao">
+                <i class="bi bi-plus-lg"></i> Adicionar opção
+            </button>
+            {% for erro in form.opcoes.errors %}<div class="text-danger small mt-1">{{ erro }}</div>{% endfor %}
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label d-block">Aparece em</label>
+            <div class="d-flex flex-wrap gap-3">
+                <div class="form-check">
+                    {{ form.aplica_saida(class="form-check-input") }}
+                    {{ form.aplica_saida.label(class="form-check-label") }}
+                </div>
+                <div class="form-check">
+                    {{ form.aplica_entrega(class="form-check-input") }}
+                    {{ form.aplica_entrega.label(class="form-check-label") }}
+                </div>
+            </div>
+            {% for erro in form.aplica_entrega.errors %}<div class="text-danger small mt-1">{{ erro }}</div>{% endfor %}
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <div class="form-check">
+                    {{ form.obrigatorio(class="form-check-input") }}
+                    {{ form.obrigatorio.label(class="form-check-label") }}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-check">
+                    {{ form.ativo(class="form-check-input") }}
+                    {{ form.ativo.label(class="form-check-label") }}
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-3" style="max-width:140px">
+            {{ form.ordem.label(class="form-label") }}
+            {{ form.ordem(class="form-control") }}
+            <small class="text-muted">Menor aparece primeiro.</small>
+        </div>
+
+        <div class="mt-4 d-flex gap-2">
+            <a href="{{ url_for('admin.configuracoes') }}#template" class="btn btn-outline-secondary">Cancelar</a>
+            {{ form.guardar(class="btn btn-navy") }}
+        </div>
+    </form>
+</div>
+
+<template id="tplOpcao">
+    <div class="d-flex gap-2 mb-2 align-items-center">
+        <input type="text" class="form-control opcao-input" placeholder="Opção">
+        <button type="button" class="btn btn-sm btn-outline-danger opcao-remove" title="Remover opção" aria-label="Remover opção">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var tipoSel = document.getElementById("campoTipo");
+    var wrapOpcoes = document.getElementById("wrapOpcoes");
+    var opcoesReal = document.getElementById("camposOpcoesReal");
+    var lista = document.getElementById("opcoesLista");
+    var btnAdd = document.getElementById("btnAddOpcao");
+    var tpl = document.getElementById("tplOpcao");
+    if (!tipoSel || !opcoesReal || !lista || !tpl) return;
+
+    function sincronizar() {
+        var valores = Array.from(lista.querySelectorAll(".opcao-input"))
+            .map(function (i) { return i.value.trim(); })
+            .filter(Boolean);
+        opcoesReal.value = valores.join("\n");
+    }
+
+    function novaLinha(valor) {
+        var linha = tpl.content.firstElementChild.cloneNode(true);
+        var input = linha.querySelector(".opcao-input");
+        input.value = valor || "";
+        input.addEventListener("input", sincronizar);
+        linha.querySelector(".opcao-remove").addEventListener("click", function () {
+            linha.remove();
+            sincronizar();
+        });
+        return linha;
+    }
+
+    function alternarTipo() {
+        wrapOpcoes.hidden = tipoSel.value !== "select";
+    }
+
+    btnAdd?.addEventListener("click", function () {
+        lista.appendChild(novaLinha(""));
+        sincronizar();
+    });
+
+    tipoSel.addEventListener("change", alternarTipo);
+
+    // Carrega as opções já guardadas (edição) ou começa com uma linha em branco.
+    var existentes = (opcoesReal.value || "").split("\n").map(function (v) { return v.trim(); }).filter(Boolean);
+    (existentes.length ? existentes : [""]).forEach(function (v) {
+        lista.appendChild(novaLinha(v));
+    });
+    sincronizar();
+    alternarTipo();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,838 @@
+================================================================================
+ NOTA DE SAÍDA — CAMINHO COMPLETO ATÉ PRODUÇÃO
+ Documento de orientação técnica
+ Última atualização: 2026-08-29
+================================================================================
+
+Este documento descreve, por fases, tudo o que falta fazer para levar a
+aplicação "Nota de Saída" de um projeto local (SQLite + Flask dev server) até
+um ambiente de produção estável, seguro e mantível dentro do Standard Bank.
+
+A ordem das fases é a ordem recomendada de execução. Podes trabalhar a Fase 0
+(UI + fluxos) em paralelo com o resto, mas NÃO avances para o deploy real
+(Fase 6 em diante) antes de fechar as Fases 1 a 5.
+
+
+--------------------------------------------------------------------------------
+ RESUMO DO ESTADO ATUAL (baseline)
+--------------------------------------------------------------------------------
+
+Stack:
+  - Python 3.12 + Flask 3.0.3 (app factory em app/__init__.py)
+  - SQLAlchemy 2.0 + Flask-SQLAlchemy + Flask-Migrate (Alembic)
+  - Flask-Login (sessões) + Flask-WTF (CSRF)
+  - ReportLab para geração do PDF institucional
+  - Templates Jinja2 + CSS/JS estático (sem build step)
+
+Persistência:
+  - SQLite em instance/nota_saida.db  (dentro de uma pasta OneDrive!)
+  - PDFs em instance/pdfs/
+  - Assinaturas (PNG) em instance/signatures/
+
+Execução:
+  - run.py -> app.run(debug=True) na porta 5000
+  - Seed automático no arranque cria contas demo com password fixa
+    (usernames A100001 / A272754 / A200550 / A300900,
+     password: Standard@2026 — só válida em AUTH_MODE=local)
+
+Autenticação:
+  - Login por username (nº de colaborador, ex.: A272754), NÃO por e-mail.
+  - AUTH_MODE=local (dev): valida hash local. AUTH_MODE=ldap (prod): valida
+    no Active Directory (app/services/auth_service.py).
+  - O campo e-mail foi removido do modelo User.
+
+Módulos:
+  - Após o login o utilizador escolhe o módulo em /modulos:
+    * "Nota de Saída"  -> menu/sidebar completo atual (funcional).
+    * "Nota de Entrega" -> em preparação; sidebar em branco.
+  - O módulo ativo fica em session["modulo"]; um before_request
+    (app/__init__._registar_guarda_modulo) só deixa entrar nas rotas do
+    módulo escolhido. "Trocar de módulo" volta a /modulos.
+  - Mapa blueprint->módulo em app/routes/modulos.py (BLUEPRINT_PARA_MODULO).
+  - A Nota de Entrega (exemplo: exemplar-DHL...docx) acrescenta uma coluna
+    "DESTINO" (balcão/filial) face à Nota de Saída — digitalização pendente.
+
+Perfis / RBAC:
+  - administrador ("Técnico Admin"): gere o sistema (utilizadores, config,
+    histórico) e cria/edita notas; NÃO aprova notas (segregação de funções).
+  - tecnico: cria/edita e submete notas.
+  - aprovador: aprova/rejeita/devolve notas E tem acesso à administração
+    (utilizadores, config, histórico) no sidebar.
+  - colaborador: perfil em desativação (sem self-service).
+
+Estados da nota:
+  - rascunho -> (técnico recolhe assinaturas «Entregue Por» + «Recebido»,
+    «Segurança» opcional) -> pendente_aprovacao -> (aprovador assina, último)
+    -> concluida (PDF gerado automaticamente)
+  - em_revisao (devolvida) e rejeitada como ramos laterais
+  - Mínimo de 2 assinaturas antes da aprovação (Entregue + Recebido).
+  - Assinatura do destinatário recolhida por signature pad (WebHID) —
+    ver SIGNATURE_PAD_REQUIRED.
+  - Não há passo manual de "confirmação de receção" (removido).
+
+DÍVIDA TÉCNICA JÁ IDENTIFICADA (tem de ser resolvida antes de produção):
+  D1. app/__init__.py faz "auto-migração" no arranque:
+        _garantir_migracoes()  -> corre flask db upgrade sozinho
+        _garantir_colunas_assinatura_sqlite() -> ALTER TABLE em SQLite à mão
+        _garantir_dados_iniciais() -> corre o seed sozinho
+      Isto é aceitável em dev, mas é PERIGOSO em produção. Migrações e
+      seed passam a ser passos explícitos de deploy.
+  D2. SECRET_KEY tem fallback "dev-nota-saida-altere-em-producao".
+      Em produção a app tem de RECUSAR arrancar sem SECRET_KEY definido.
+  D3. instance/ está dentro do OneDrive -> sincronização + lock de ficheiros
+      + risco de corrupção do .db. A base de dados e os ficheiros têm de
+      sair do OneDrive.
+  D4. pdf_service.py depende de C:\Windows\Fonts\times.ttf (Times New Roman).
+      Num container Linux essa fonte não existe -> o PDF muda de aparência.
+      É preciso empacotar as fontes .ttf no repositório.
+  D5. Seed com password fixa não pode existir em produção.
+  D6. run.py com debug=True não é servidor de produção.
+  D7. Binários grandes em app/static/assets/ (.docx, .pdf exemplar, .png)
+      não pertencem ao controlo de versões da app — mover para docs/ ou
+      para um bucket, e limpar do git se necessário.
+
+
+--------------------------------------------------------------------------------
+ FASE 0 — FECHAR UI E FLUXOS (foco atual)
+--------------------------------------------------------------------------------
+
+Objetivo: a aplicação faz 100% do que promete, em local, sem passos manuais
+escondidos. Só se avança quando isto estiver verdadeiramente fechado.
+
+0.1 Mapear todos os fluxos e validar um a um (fazer checklist real):
+    [ ] Autenticação: login, logout, sessão expira, "next" redirect correto
+    [ ] Recuperação de acesso (reset de password) — existe? é necessário?
+    [ ] Criar nota (rascunho): validações do formulário, itens múltiplos,
+        associação do ticket Remedy, campos obrigatórios vs opcionais
+    [ ] Editar rascunho / apagar rascunho
+    [ ] Submeter para aprovação (rascunho -> pendente_aprovacao)
+    [ ] Aprovador: listar pendentes, ver detalhe, aprovar, rejeitar,
+        devolver para revisão (em_revisao) com comentário
+    [ ] Técnico: corrigir nota em_revisao e re-submeter
+    [ ] Assinatura do aprovador: captura, posicionamento, escala, gravação
+    [ ] Confirmação do recetor / assinatura de quem recebe
+    [ ] Validação da Segurança (quando aplicável) — está implementado?
+    [ ] Conclusão da nota (aprovada -> concluida) e bloqueio de edição
+    [ ] Geração do PDF final: layout, cabeçalho, logo, assinaturas na
+        posição certa, numeração 000003/2026, download
+    [ ] Histórico / auditoria: cada transição de estado fica registada
+        com utilizador, data/hora e ação
+    [ ] Dashboard: contadores e listas corretos por perfil
+    [ ] Admin: gestão de utilizadores (criar, editar, desativar, definir
+        perfil), configurações da instituição
+    [ ] Permissões: cada rota testada com cada perfil (inclui tentativa
+        de acesso negado -> 403)
+    [ ] Erros: páginas 403/404/500 aparecem e não vazam stack trace
+
+0.2 Rever a máquina de estados num único sítio:
+    - Documentar as transições permitidas (tabela estado_atual -> ação ->
+      estado_novo -> perfis autorizados).
+    - Garantir que nenhuma rota permite uma transição fora da tabela.
+    - Idealmente centralizar num serviço (nota_service) e não nas rotas.
+
+0.3 UI:
+    [ ] Consistência visual segundo std_ui_patterns.txt
+    [ ] Estados vazios (sem notas, sem pendentes, sem utilizadores)
+    [ ] Mensagens flash claras para cada ação (sucesso / aviso / erro)
+    [ ] Formulários mostram erros de validação campo a campo
+    [ ] Responsividade mínima (a app vai ser usada em desktop, confirmar)
+    [ ] Loading/disabled em botões que submetem (evitar duplo submit)
+    [ ] Acessibilidade básica: labels, foco, contraste
+
+0.4 Dados de demonstração:
+    - Manter o seed APENAS como comando manual (flask seed), nunca no
+      arranque. Ver Fase 1.
+
+0.5 Congelar o modelo de dados:
+    - A partir daqui, qualquer mudança de schema é uma migração Alembic
+      nova e testada (nada de ALTER manual).
+
+Saída da Fase 0: consegues fazer uma demo ponta-a-ponta sem tocar na base
+de dados manualmente e sem erros no log.
+
+
+--------------------------------------------------------------------------------
+ FASE 1 — HIGIENE DE CÓDIGO E CONFIGURAÇÃO
+--------------------------------------------------------------------------------
+
+Objetivo: separar claramente dev de produção e remover a "magia" do arranque.
+
+1.1 config.py — endurecer ProductionConfig:
+    - SECRET_KEY: em produção, se não vier do ambiente -> raise RuntimeError.
+    - SESSION_COOKIE_SECURE = True
+    - SESSION_COOKIE_HTTPONLY = True
+    - SESSION_COOKIE_SAMESITE = "Lax"
+    - PERMANENT_SESSION_LIFETIME = timedelta(hours=8)  (ajustar à política)
+    - PREFERRED_URL_SCHEME = "https"
+    - WTF_CSRF_SSL_STRICT = True
+    - MAX_CONTENT_LENGTH = 10 * 1024 * 1024  (limite de upload de assinaturas)
+    - SQLALCHEMY_ENGINE_OPTIONS: manter pool_pre_ping; adicionar
+      pool_recycle=280, pool_size=5, max_overflow=10 (para Postgres)
+    - Ler DATABASE_URL obrigatoriamente em produção (sem fallback SQLite).
+    - PDF_FOLDER / SIGNATURE_FOLDER: ler de variável de ambiente
+      (ex.: DATA_DIR) e NÃO de dentro do repositório/OneDrive.
+
+1.2 app/__init__.py — remover comportamento automático:
+    - Apagar _garantir_migracoes(), _garantir_colunas_assinatura_sqlite(),
+      _garantir_dados_iniciais().
+    - Migrações passam a: "flask db upgrade" (passo de deploy).
+    - Seed passa a: "flask seed" (executado uma vez, manualmente).
+    - Manter os os.makedirs() das pastas de dados (isso é inofensivo).
+    - Adicionar ProxyFix (werkzeug.middleware.proxy_fix) porque vai correr
+      atrás de um reverse proxy:
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+1.3 run.py:
+    - Manter só para desenvolvimento.
+    - Criar um entrypoint WSGI limpo: wsgi.py com "app = create_app(...)".
+    - Produção usa gunicorn wsgi:app (ver Fase 5).
+
+1.4 Seed seguro:
+    - O comando flask seed deve:
+        * recusar correr se FLASK_ENV=production e não houver flag
+          explícita (ex.: --force ou variável SEED_ALLOW=1);
+        * criar apenas 1 utilizador administrador inicial;
+        * gerar password aleatória e imprimi-la UMA vez (ou obrigar a
+          defini-la via variável ADMIN_INITIAL_PASSWORD);
+        * nunca criar contas "tecnico/aprovador/colaborador" fixas em prod.
+
+1.5 Variáveis de ambiente (definir o contrato — ver ANEXO A):
+    - Criar .env.example completo e realista.
+    - .env real nunca entra no git (já está no .gitignore, confirmar).
+
+1.6 Logging:
+    - Configurar logging estruturado (nível INFO em prod, sem debug).
+    - Log para stdout/stderr (o container trata da recolha).
+    - Registar: login/logout, falhas de auth, transições de estado da nota,
+      geração de PDF, erros 500 com stack trace (só no log, nunca no browser).
+    - Nunca registar passwords, tokens de sessão nem conteúdo de assinaturas.
+
+1.7 Qualidade:
+    - Adicionar ruff (lint) + black ou ruff format.
+    - Adicionar pre-commit com: ruff, black, check de ficheiros grandes,
+      check de segredos (detect-secrets ou gitleaks).
+    - Passar um linter a todo o código e corrigir os avisos.
+
+1.8 Dependências:
+    - Fixar versões (já estão fixas — bom).
+    - Adicionar requirements-dev.txt (pytest, ruff, black, pre-commit, etc).
+    - Considerar migrar para pip-tools (requirements.in -> requirements.txt)
+      ou uv para lockfile reprodutível.
+    - Adicionar "psycopg[binary]" (driver PostgreSQL) ao requirements.txt.
+
+Saída da Fase 1: a app arranca em modo produção apenas com variáveis de
+ambiente corretas, sem tocar na base de dados sozinha.
+
+
+--------------------------------------------------------------------------------
+ FASE 2 — BASE DE DADOS (PostgreSQL)
+--------------------------------------------------------------------------------
+
+Objetivo: sair de SQLite para PostgreSQL, com migrações limpas.
+
+2.1 Escolha:
+    - PostgreSQL 16 (padrão da indústria, suportado pelo SQLAlchemy que já usas).
+    - Em dev: container postgres via docker-compose.
+    - Em prod: instância gerida pela infraestrutura do banco (preferível) ou
+      container postgres com volume persistente + backups.
+
+2.2 Driver:
+    - psycopg (v3): DATABASE_URL = postgresql+psycopg://user:pass@host:5432/nota_saida
+    - Garantir SQLALCHEMY_ENGINE_OPTIONS com pool_pre_ping (já tens) e
+      pool_recycle.
+
+2.3 Migrações Alembic — limpeza:
+    - Rever a pasta migrations/versions/. Há 4 migrações + patches manuais
+      de SQLite. Antes de produção:
+        Opção A (recomendada, projeto ainda sem dados reais):
+          * Apagar todas as migrações e o histórico.
+          * Gerar UMA migração inicial a partir dos modelos atuais:
+              flask db migrate -m "esquema inicial"
+              flask db upgrade
+          * Verificar o SQL gerado à mão (tipos, índices, FKs, nullability,
+            defaults, unique constraints em email, etc).
+        Opção B (se já houver dados a preservar):
+          * Manter o histórico, mas escrever uma migração que consolide os
+            ALTER manuais que hoje são feitos em código.
+    - Confirmar que "flask db upgrade" numa base VAZIA cria tudo, e que
+      "flask db downgrade base" reverte sem erros.
+    - Testar upgrade contra PostgreSQL (não só SQLite) — tipos como BOOLEAN,
+      FLOAT e VARCHAR(255) comportam-se de forma diferente.
+
+2.4 Integridade de dados a garantir no schema:
+    - users.email UNIQUE + NOT NULL + índice
+    - users.perfil com CHECK ou Enum nativo
+    - notas_saida.estado com CHECK/Enum
+    - FKs com ON DELETE apropriado (RESTRICT para notas, etc)
+    - historico: append-only (sem UPDATE/DELETE pela app)
+    - índices em notas_saida.estado, notas_saida.criado_por, data_emissao
+
+2.5 Camada de acesso:
+    - Garantir que todas as queries usam a sessão do SQLAlchemy corretamente
+      e que há rollback em caso de exceção (o app já faz nalguns rollbacks
+      defensivos — rever se são necessários depois de remover a auto-migração).
+    - Remover os try/except que "escondem schema mismatch" no user_loader:
+      em produção um schema errado deve falhar visivelmente, não silenciar.
+
+2.6 Dados de referência:
+    - Configuracao (linha id=1) deve ser criada por migração de dados ou
+      pelo seed, de forma determinística.
+    - TIPOS_ITEM: decidir se fica em constantes (código) ou em tabela.
+
+Saída da Fase 2: "flask db upgrade" numa base PostgreSQL limpa produz o
+schema completo; a app corre 100% dos fluxos contra PostgreSQL local.
+
+
+--------------------------------------------------------------------------------
+ FASE 3 — ARMAZENAMENTO DE FICHEIROS (PDFs e assinaturas)
+--------------------------------------------------------------------------------
+
+Objetivo: ficheiros persistentes fora do container e fora do OneDrive.
+
+3.1 Modelo atual: ficheiros no disco (instance/pdfs, instance/signatures).
+    Um container é efémero -> se ficares em disco, TEM de ser um volume
+    montado e incluído nos backups.
+
+3.2 Opção A — Volume persistente (mais simples, bom para começar):
+    - DATA_DIR=/data no container, volume Docker/host montado em /data.
+    - Estrutura: /data/pdfs, /data/signatures.
+    - Permissões: o utilizador do container (não-root) tem de poder escrever.
+    - Backup: incluir /data no plano de backup (Fase 9).
+
+3.3 Opção B — Object storage (S3 / MinIO / Azure Blob) (melhor a prazo):
+    - Abstrair o acesso a ficheiros num módulo storage.py com interface
+      (guardar, ler, url_assinado, apagar).
+    - Implementação local (disco) para dev, implementação S3 para prod.
+    - PDFs e assinaturas passam a ser objetos; a app guarda só a chave.
+
+3.4 Regenerabilidade do PDF:
+    - Idealmente o PDF final é sempre regenerável a partir dos dados +
+      assinaturas. Assim o PDF em si é cache, não fonte de verdade.
+    - As assinaturas (PNG) SÃO fonte de verdade -> backup obrigatório.
+
+3.5 Segurança dos ficheiros:
+    - Nunca servir a pasta de assinaturas como estático público.
+    - Servir via rota autenticada com verificação de permissão sobre a nota.
+    - Validar o conteúdo do upload (é mesmo PNG? tamanho? dimensões?).
+    - Nome de ficheiro gerado pela app (uuid), nunca vindo do cliente.
+
+3.6 Fontes do PDF (dívida D4):
+    - Adicionar as .ttf necessárias (Times New Roman ou substituto livre
+      equivalente, ex.: "Tinos" / "Liberation Serif") em app/assets/fonts/.
+    - pdf_service._registar_fontes() passa a carregar do caminho do
+      repositório, com o Windows Fonts apenas como fallback de dev.
+    - Testar o PDF gerado dentro do container Linux (aparência idêntica).
+
+Saída da Fase 3: PDFs e assinaturas sobrevivem a um restart/redeploy do
+container e estão nos backups.
+
+
+--------------------------------------------------------------------------------
+ FASE 4 — BACKEND: SEGURANÇA E ROBUSTEZ
+--------------------------------------------------------------------------------
+
+Objetivo: a app aguenta utilizadores reais e uma auditoria de segurança.
+
+4.1 Autenticação:
+    - Login por nome de utilizador (nº de colaborador, ex.: A272754).
+    - JÁ IMPLEMENTADO: app/services/auth_service.py com dois modos
+      (AUTH_MODE): "local" (hash local, só dev) e "ldap" (Active Directory,
+      "palavra-passe do computador"). Produção usa AUTH_MODE=ldap.
+    - Para produção, configurar: LDAP_HOST, LDAP_PORT, LDAP_USE_SSL,
+      LDAP_DOMAIN, LDAP_BASE_DN (ver .env.example). Precisa de rede para o
+      domínio e, idealmente, LDAPS (porta 636).
+    - Decidir o modelo de provisionamento: o admin cria a conta (username +
+      nome + perfil) e o AD só valida a palavra-passe. O AD não cria contas
+      nem atribui perfis. (Alternativa futura: mapear grupos AD -> perfil.)
+    - Bloqueio/atraso após N tentativas falhadas (Flask-Limiter) — o AD tem
+      a sua própria política de lockout; não a acionar por engano.
+    - Conta "break-glass": 1 admin local com password_hash, para o caso de
+      o AD estar inacessível.
+    - Timeout/retentativa no bind LDAP (já com connect/receive timeout=8s).
+    - Logout invalida a sessão; "lembrar-me" só se realmente necessário.
+    - password_hash passou a nullable (contas puras de AD não guardam hash).
+
+4.2 Autorização:
+    - Rever todos os decoradores em app/utils/decorators.py.
+    - Cada rota tem @login_required + verificação de perfil explícita.
+    - Verificação de posse do recurso (o técnico X não vê/edita nota do Y,
+      salvo perfis com permissão global).
+    - Testes automáticos de autorização (Fase 5).
+
+4.3 Proteções web:
+    - CSRF: já ativo (Flask-WTF). Confirmar que TODOS os POST/PUT/DELETE
+      passam por formulário WTForms ou enviam o token.
+    - Cabeçalhos de segurança (via Flask-Talisman ou middleware próprio):
+        * Content-Security-Policy (restritiva; a app não usa CDN externo)
+        * X-Content-Type-Options: nosniff
+        * X-Frame-Options: DENY
+        * Referrer-Policy: same-origin
+        * Strict-Transport-Security (HSTS) — no proxy ou na app
+    - Rate limiting global e específico no /login (Flask-Limiter + Redis).
+    - Validar e escapar tudo o que é renderizado (Jinja já auto-escapa;
+      cuidado com |safe e com render de HTML vindo de input).
+
+4.4 Sessões:
+    - Cookies Secure/HttpOnly/SameSite (Fase 1).
+    - Considerar armazenamento de sessão do lado do servidor (Flask-Session
+      + Redis) se precisares de revogar sessões / logout global.
+
+4.5 Auditoria:
+    - Tabela historico como registo imutável (append-only).
+    - Registar: quem, quando, o quê, estado_antes -> estado_depois, IP,
+      user-agent (opcional).
+    - Exportação do histórico para auditoria (CSV/PDF) via rota admin.
+
+4.6 Tratamento de erros:
+    - 500 nunca mostra stack trace ao utilizador (já há template 500.html).
+    - Capturar exceções não tratadas -> log + página amigável.
+    - Integração opcional com Sentry (SENTRY_DSN) para produção.
+
+4.7 Validações de negócio (server-side, não confiar no JS):
+    - Não submeter nota sem itens.
+    - Não aprovar a própria nota (segregação de funções).
+    - Não editar nota concluída/aprovada.
+    - Ticket Remedy com formato validado.
+    - Datas coerentes (emissão <= entrega).
+
+4.8 Dependências e vulnerabilidades:
+    - pip-audit / safety no CI.
+    - Atualizar base de imagem regularmente.
+
+Saída da Fase 4: um pentest interno básico não encontra nada crítico;
+todos os fluxos validados no servidor.
+
+
+--------------------------------------------------------------------------------
+ FASE 5 — TESTES AUTOMATIZADOS
+--------------------------------------------------------------------------------
+
+Objetivo: rede de segurança antes de cada deploy.
+
+5.1 Framework: pytest + pytest-flask + factory-boy (ou fixtures simples) +
+    coverage.
+
+5.2 Configuração de testes:
+    - TestConfig com base de dados isolada (SQLite em memória para rapidez;
+      MAS também correr a suite contra PostgreSQL no CI pelo menos 1x).
+    - Fixtures: app, client, db limpa por teste, utilizadores de cada perfil.
+    - Desligar CSRF só nos testes (WTF_CSRF_ENABLED=False) OU testar com token.
+
+5.3 Cobertura mínima obrigatória:
+    - Auth: login ok/ko, logout, acesso a rota protegida sem sessão.
+    - RBAC: matriz perfil x rota (cada combinação -> 200 ou 403 esperado).
+    - Máquina de estados: cada transição válida funciona; cada transição
+      inválida é rejeitada.
+    - Criação/edição/submissão de nota com validações.
+    - Aprovação, rejeição, devolução para revisão.
+    - Assinaturas: upload válido, upload inválido rejeitado.
+    - Geração de PDF: não rebenta, devolve application/pdf, tamanho > 0.
+    - Histórico: cada ação relevante cria 1 registo.
+    - Seed: cria admin, é idempotente, recusa em prod sem flag.
+
+5.4 Testes de template/smoke:
+    - GET a todas as páginas principais com cada perfil -> sem 500.
+
+5.5 Meta de cobertura: >= 70% nas camadas services/ e routes/ para começar.
+
+5.6 CI corre a suite em cada push/PR (Fase 8).
+
+Saída da Fase 5: "pytest" verde localmente e no CI; refactors deixam de
+dar medo.
+
+
+--------------------------------------------------------------------------------
+ FASE 6 — CONTAINERIZAÇÃO (Docker)
+--------------------------------------------------------------------------------
+
+Objetivo: a app corre igual em qualquer máquina.
+
+6.1 Dockerfile (multi-stage, imagem final slim, utilizador não-root):
+
+    # ---- build ----
+    FROM python:3.12-slim AS build
+    ENV PIP_NO_CACHE_DIR=1 PYTHONDONTWRITEBYTECODE=1
+    WORKDIR /app
+    RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential libpq-dev && rm -rf /var/lib/apt/lists/*
+    COPY requirements.txt .
+    RUN python -m venv /venv && /venv/bin/pip install -r requirements.txt
+
+    # ---- runtime ----
+    FROM python:3.12-slim
+    ENV PATH="/venv/bin:$PATH" PYTHONUNBUFFERED=1 FLASK_ENV=production
+    RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq5 && rm -rf /var/lib/apt/lists/* \
+        && useradd -m -u 10001 appuser
+    WORKDIR /app
+    COPY --from=build /venv /venv
+    COPY . .
+    RUN mkdir -p /data/pdfs /data/signatures && chown -R appuser:appuser /data /app
+    USER appuser
+    EXPOSE 8000
+    HEALTHCHECK --interval=30s --timeout=3s \
+      CMD python -c "import urllib.request;urllib.request.urlopen('http://localhost:8000/healthz')" || exit 1
+    CMD ["gunicorn", "-c", "gunicorn.conf.py", "wsgi:app"]
+
+6.2 .dockerignore:
+    .git, .venv, __pycache__, instance/, *.db, *.log, tests/, docs/,
+    node_modules, .env, app/static/assets/*.docx, *.pdf exemplar, etc.
+
+6.3 gunicorn.conf.py:
+    - bind = "0.0.0.0:8000"
+    - workers = 2 * CPU + 1  (começar com 3)
+    - worker_class = "gthread", threads = 4  (I/O de PDF e ficheiros)
+    - timeout = 60, graceful_timeout = 30
+    - max_requests = 1000, max_requests_jitter = 100  (recicla workers)
+    - accesslog = "-", errorlog = "-", loglevel = "info"
+
+6.4 Endpoint de saúde:
+    - Adicionar rota /healthz (sem auth) -> verifica DB (SELECT 1) e devolve
+      200/503. Usada pelo Docker HEALTHCHECK e pelo balanceador.
+    - Adicionar /readyz se distinguires "vivo" de "pronto".
+
+6.5 docker-compose.yml (dev e/ou staging):
+    services:
+      db:        postgres:16, volume pgdata, env POSTGRES_*
+      redis:     redis:7  (rate limit / sessões, se usado)
+      web:       build ., depends_on db+redis, env_file .env,
+                 volume nota_data:/data, ports "8000:8000"
+      # nginx opcional aqui para staging
+    volumes: pgdata, nota_data
+
+6.6 Migrações no arranque do container:
+    - NÃO correr "flask db upgrade" dentro do CMD do gunicorn.
+    - Usar um entrypoint.sh que corre "flask db upgrade" e depois exec
+      gunicorn — OU um job/step separado no deploy (preferível em orquestra-
+      dores). Garantir que só 1 instância corre a migração de cada vez.
+
+6.7 Build reprodutível:
+    - Tag da imagem = versão semântica + git sha (ex.: nota-saida:1.2.0-a1b2c3d).
+    - Registo de imagens interno do banco.
+
+Saída da Fase 6: "docker compose up" levanta db + app; os fluxos funcionam
+no container; a imagem final não corre como root e não tem build tools.
+
+
+--------------------------------------------------------------------------------
+ FASE 7 — REVERSE PROXY, TLS E REDE
+--------------------------------------------------------------------------------
+
+Objetivo: HTTPS, terminação TLS, ficheiros estáticos servidos com eficiência.
+
+7.1 Reverse proxy (nginx ou o que a infra do banco padronizar):
+    - Termina TLS (certificado interno da PKI do banco).
+    - Faz proxy_pass para gunicorn (http://web:8000).
+    - Repassa X-Forwarded-For / -Proto / -Host (a app já tem ProxyFix).
+    - client_max_body_size alinhado com MAX_CONTENT_LENGTH.
+    - Timeouts coerentes com o gunicorn.
+    - Serve /static/ diretamente (alias para a pasta), com cache headers.
+    - Cabeçalhos de segurança (HSTS etc.) aqui ou na app (não duplicar).
+    - Gzip/brotli para HTML/CSS/JS.
+
+7.2 TLS:
+    - Certificado emitido pela CA interna do Standard Bank.
+    - Renovação automática ou processo documentado.
+    - TLS 1.2+ apenas; ciphers modernos.
+    - Redirect 80 -> 443.
+
+7.3 Rede:
+    - App e DB numa rede privada; DB sem exposição pública.
+    - Firewall: só 443 exposto (e SSH restrito para operações).
+    - DNS interno: nota-saida.intranet.standardbank.co.mz (exemplo).
+
+7.4 Nome e domínio:
+    - Definir o hostname oficial com a equipa de redes.
+    - Registar no proxy/gateway corporativo se existir.
+
+Saída da Fase 7: a app responde só em HTTPS, atrás do proxy, com estáticos
+rápidos e sem avisos de certificado.
+
+
+--------------------------------------------------------------------------------
+ FASE 8 — CI/CD
+--------------------------------------------------------------------------------
+
+Objetivo: do commit ao ambiente sem passos manuais propensos a erro.
+
+8.1 Pipeline (GitLab CI / GitHub Actions / Azure DevOps — o que o banco usar):
+    Estágios:
+      1. lint       -> ruff, black --check, verificação de segredos
+      2. test       -> pytest + coverage (SQLite rápido + 1 job PostgreSQL)
+      3. security   -> pip-audit, bandit, trivy à imagem
+      4. build      -> docker build, tag com sha, push para registo interno
+      5. deploy-staging  -> automático no merge para "develop"/"main"
+      6. deploy-prod     -> manual (aprovação), tag de release "vX.Y.Z"
+
+8.2 Migrações no deploy:
+    - Passo explícito "flask db upgrade" antes de trocar a versão da app.
+    - Estratégia de migração compatível (expand/contract) para evitar
+      downtime: adicionar colunas nullable primeiro, backfill, depois
+      tornar not-null noutra release.
+
+8.3 Estratégia de release:
+    - Começar simples: parar container antigo, migrar, subir novo
+      (downtime de segundos, aceitável para app interna).
+    - Evoluir para rolling/blue-green se o SLA exigir.
+
+8.4 Versionamento:
+    - SemVer + CHANGELOG.md.
+    - Tag git = imagem = release.
+
+8.5 Rollback:
+    - Manter as 2-3 imagens anteriores.
+    - Rollback = redeploy da imagem anterior (só funciona se as migrações
+      forem compatíveis para trás — ver 8.2).
+    - Documentar o procedimento de rollback de base de dados.
+
+8.6 Ambientes:
+    - dev (local, docker-compose)
+    - staging (igual a produção, dados fictícios, para UAT)
+    - produção
+
+Saída da Fase 8: um merge aprovado chega a staging sozinho; produção é um
+clique com aprovação e é reversível.
+
+
+--------------------------------------------------------------------------------
+ FASE 9 — OBSERVABILIDADE, BACKUPS E CONTINUIDADE
+--------------------------------------------------------------------------------
+
+9.1 Logs:
+    - Centralizados (stack do banco: ELK / Splunk / Loki).
+    - Retenção conforme política (auditoria pode exigir 1+ ano para o
+      histórico de notas).
+
+9.2 Métricas:
+    - Básico: CPU/RAM/disco do host e do container.
+    - App: latência por rota, taxa de erros 5xx, nº de PDFs gerados,
+      notas por estado. (prometheus-flask-exporter é uma opção.)
+
+9.3 Alertas:
+    - App em baixo (/healthz falha) -> alerta imediato.
+    - Taxa de 5xx acima de X.
+    - Disco do volume /data acima de 80%.
+    - Falha de backup.
+    - Certificado TLS a < 21 dias de expirar.
+
+9.4 Backups:
+    - Base de dados PostgreSQL: pg_dump diário + retenção 30 dias +
+      cópia offsite. Testar RESTORE trimestralmente.
+    - Volume /data (assinaturas e PDFs): snapshot/backup diário.
+    - Documentar RPO (ex.: 24h) e RTO (ex.: 4h) acordados com o negócio.
+
+9.5 Plano de recuperação (DR):
+    - Runbook: como levantar a app do zero noutra máquina a partir da
+      imagem + backup da DB + backup do /data.
+    - Testar o runbook pelo menos 1x antes do go-live.
+
+9.6 Manutenção:
+    - Janela de manutenção definida.
+    - Processo de aplicar patches de segurança do SO/imagem.
+
+Saída da Fase 9: se o servidor arder, sabes exatamente como repor o
+serviço e em quanto tempo, e já o testaste.
+
+
+--------------------------------------------------------------------------------
+ FASE 10 — CONFORMIDADE E APROVAÇÕES INTERNAS (Standard Bank)
+--------------------------------------------------------------------------------
+
+Estas etapas correm em paralelo e podem ser o caminho crítico real.
+
+    [ ] Registo da aplicação no inventário de aplicações do banco (CMDB).
+    [ ] Classificação da informação (a nota de saída tem dados de
+        colaboradores -> provável "Interno/Confidencial").
+    [ ] Avaliação de privacidade / proteção de dados (que dados pessoais,
+        base legal, retenção, quem acede).
+    [ ] Revisão de segurança da informação (SecOps): arquitetura, pentest,
+        gestão de acessos, logging de auditoria.
+    [ ] Aprovação de arquitetura (se existir um comité).
+    [ ] Gestão de acessos: integração com Active Directory / SSO (SAML ou
+        OIDC) em vez de contas locais? (muito provável ser exigido).
+        -> Se sim, planear Flask-Login + provedor SSO corporativo; as
+           contas locais ficam só para "break-glass".
+    [ ] Definição do dono do negócio e do dono técnico da aplicação.
+    [ ] Plano de suporte (quem responde a incidentes, SLA interno).
+    [ ] Formação dos utilizadores (técnicos, aprovadores) + manual.
+    [ ] Aceitação formal do utilizador (UAT assinado).
+
+Saída da Fase 10: a app tem "luz verde" formal para entrar em produção.
+
+
+--------------------------------------------------------------------------------
+ FASE 11 — GO-LIVE (checklist final)
+--------------------------------------------------------------------------------
+
+Pré-produção:
+    [ ] Todas as Fases 1-5 concluídas e testadas
+    [ ] Suite de testes verde no CI (incl. job PostgreSQL)
+    [ ] pip-audit / trivy sem findings críticos
+    [ ] SECRET_KEY forte e único gerado e guardado no cofre de segredos
+    [ ] DATABASE_URL de produção configurada (utilizador com privilégios
+        mínimos, não superuser)
+    [ ] .env de produção só no cofre / gestor de segredos (nunca no git)
+    [ ] Migrações aplicadas em staging sem erros; testadas em base vazia
+    [ ] Seed de produção: 1 admin, password entregue de forma segura
+    [ ] Backups configurados e 1 restore de teste bem-sucedido
+    [ ] Monitorização e alertas ativos
+    [ ] Certificado TLS válido e instalado
+    [ ] DNS a apontar para o ambiente certo
+    [ ] Páginas de erro 403/404/500 confirmadas (sem stack trace)
+    [ ] DEBUG=False confirmado em produção
+    [ ] Rate limiting no /login ativo
+    [ ] Cabeçalhos de segurança verificados (securityheaders.com interno
+        ou curl -I)
+    [ ] Runbook de rollback e de DR escritos e revistos
+    [ ] Dono técnico e dono de negócio definidos
+    [ ] UAT assinado
+
+Go-live:
+    [ ] Anúncio da janela aos utilizadores
+    [ ] Deploy da versão vX.Y.Z
+    [ ] flask db upgrade
+    [ ] Smoke test em produção: login, criar nota, aprovar, gerar PDF,
+        ver histórico
+    [ ] Confirmar logs e métricas a fluir
+    [ ] Confirmar 1º backup pós-go-live
+
+Pós go-live (primeira semana):
+    [ ] Acompanhamento diário de erros e latência
+    [ ] Recolha de feedback dos utilizadores
+    [ ] Ajuste de workers/recursos conforme carga real
+    [ ] Retrospetiva e registo de lições aprendidas
+
+
+================================================================================
+ ANEXO A — VARIÁVEIS DE AMBIENTE (contrato)
+================================================================================
+
+Obrigatórias em produção (app recusa arrancar sem elas):
+    SECRET_KEY=<64 hex aleatórios>            # python -c "import secrets;print(secrets.token_hex(32))"
+    DATABASE_URL=postgresql+psycopg://nota_app:<pass>@db:5432/nota_saida
+    FLASK_ENV=production
+    DATA_DIR=/data                            # raiz de pdfs/ e signatures/
+    AUTH_MODE=ldap
+    LDAP_HOST=dc01.standardbank.co.mz
+    LDAP_DOMAIN=SBM                           # domínio NetBIOS (bind: SBM\A272754)
+
+Recomendadas:
+    APP_BASE_URL=https://nota-saida.intranet.standardbank.co.mz
+    SIGNATURE_PAD_REQUIRED=1                  # exige pad detetada (WebHID)
+    LDAP_PORT=636
+    LDAP_USE_SSL=1
+    LDAP_BASE_DN=DC=standardbank,DC=co,DC=mz
+    USERNAME_REGEX=^[A-Za-z]{1,2}\d{4,8}$
+    SESSION_LIFETIME_HOURS=8
+    LOG_LEVEL=INFO
+    SENTRY_DSN=<se usado>
+    REDIS_URL=redis://redis:6379/0            # rate limiting / sessões
+    ADMIN_INITIAL_USERNAME=A100001            # conta break-glass (admin local)
+    ADMIN_INITIAL_PASSWORD=<entregue via cofre; forçar troca no 1º login>
+    SEED_ALLOW=0                              # 1 só quando se quer semear
+
+Nunca:
+    - Committar .env
+    - Reutilizar SECRET_KEY entre ambientes
+    - Usar o utilizador postgres/superuser para a app
+
+
+================================================================================
+ ANEXO B — FICHEIROS A CRIAR / ALTERAR
+================================================================================
+
+Criar:
+    wsgi.py                     # app = create_app("production")
+    gunicorn.conf.py            # config do gunicorn (ver Fase 6.3)
+    Dockerfile                  # multi-stage (ver Fase 6.1)
+    .dockerignore
+    docker-compose.yml          # db + redis + web (+ nginx staging)
+    docker/entrypoint.sh        # flask db upgrade && exec gunicorn ...
+    docker/nginx.conf           # reverse proxy (ou infra do banco)
+    requirements-dev.txt        # pytest, ruff, black, pre-commit, pip-audit
+    .pre-commit-config.yaml
+    tests/                      # conftest.py + testes por área
+    app/storage.py              # abstração de ficheiros (disco/S3)
+    app/routes/health.py        # /healthz, /readyz
+    app/assets/fonts/*.ttf      # fontes do PDF (não depender do Windows)
+    .gitlab-ci.yml  (ou .github/workflows/ci.yml)
+    docs/RUNBOOK.md             # deploy, rollback, DR
+    CHANGELOG.md
+
+Alterar:
+    config.py                   # ProductionConfig endurecida (Fase 1.1)
+    app/__init__.py             # remover auto-migração/seed; add ProxyFix
+    run.py                      # só dev
+    app/services/pdf_service.py # fontes do repositório
+    app/services/seed.py        # seed seguro para produção
+    app/__init__.py / user_loader # deixar de silenciar schema mismatch
+    .env.example                # contrato completo (Anexo A)
+    requirements.txt            # + psycopg[binary]  (e Flask-Limiter, etc.)
+    migrations/                 # consolidar (Fase 2.3)
+
+Mover para fora do repositório da app (ou para docs/):
+    app/static/assets/exemplar_Nota_de_Saida.pdf
+    app/static/assets/*.docx
+    app/static/assets/header nota de saida.png (se não usado em runtime)
+    instance/nota_saida.db*, instance/_gen_preview.py, instance/exemplar_preview.png
+
+
+================================================================================
+ ANEXO C — COMANDOS ÚTEIS
+================================================================================
+
+Dev local (sem Docker):
+    .venv\Scripts\Activate.ps1
+    flask db upgrade
+    flask seed                       # uma vez
+    flask run                        # dev server
+
+Dev com Docker:
+    docker compose up --build
+    docker compose exec web flask db upgrade
+    docker compose exec web flask seed
+
+Migrações:
+    flask db migrate -m "descrição"  # gerar (rever sempre o ficheiro!)
+    flask db upgrade                 # aplicar
+    flask db downgrade -1            # reverter uma
+    flask db history                 # ver histórico
+
+Testes:
+    pytest -q
+    pytest --cov=app --cov-report=term-missing
+
+Segurança:
+    pip-audit
+    bandit -r app
+    trivy image nota-saida:<tag>
+
+Gerar SECRET_KEY:
+    python -c "import secrets; print(secrets.token_hex(32))"
+
+Backup / restore PostgreSQL:
+    pg_dump -Fc -d "$DATABASE_URL" -f nota_saida_$(date +%F).dump
+    pg_restore -d "$DATABASE_URL" --clean --if-exists nota_saida_YYYY-MM-DD.dump
+
+
+================================================================================
+ CAMINHO CRÍTICO (resumo de 1 linha por fase)
+================================================================================
+
+ 0. Fechar UI + todos os fluxos ponta-a-ponta em local
+ 1. Separar dev/prod, remover auto-migração/seed, endurecer config
+ 2. Migrar SQLite -> PostgreSQL, consolidar migrações Alembic
+ 3. Tirar PDFs/assinaturas do OneDrive -> volume ou object storage
+ 4. Segurança: auth, RBAC, cabeçalhos, rate limit, auditoria
+ 5. Testes automatizados (pytest) com cobertura dos fluxos e do RBAC
+ 6. Dockerfile + gunicorn + /healthz + docker-compose
+ 7. Reverse proxy + TLS + rede privada
+ 8. CI/CD: lint -> test -> scan -> build -> deploy staging -> prod
+ 9. Logs, métricas, alertas, backups testados, runbook de DR
+10. Aprovações internas do banco (SecOps, dados, SSO/AD, CMDB)
+11. Go-live com checklist e plano de rollback
+
+================================================================================
+ FIM
+================================================================================

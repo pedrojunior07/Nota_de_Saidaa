@@ -1,0 +1,11 @@
+{% if campos_valores %}
+<div class="panel mb-3 mt-3">
+    <div class="panel-head"><h2>Campos adicionais</h2></div>
+    <dl class="row mb-0">
+        {% for rotulo, valor in campos_valores %}
+        <dt class="col-sm-4">{{ rotulo }}</dt>
+        <dd class="col-sm-8">{{ valor or "—" }}</dd>
+        {% endfor %}
+    </dl>
+</div>
+{% endif %}

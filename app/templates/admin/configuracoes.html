@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Configurações{% endblock %}
+{% block heading %}Configurações{% endblock %}
+{% block subtitle %}Dados institucionais, template do formulário e outras definições da plataforma.{% endblock %}
+
+{% block extra_head %}
+<link href="https://fonts.googleapis.com/css2?family=Tinos:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<ul class="nav nav-tabs mb-3" id="configTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="tab-geral-btn" data-bs-toggle="tab" data-bs-target="#tab-geral"
+                type="button" role="tab" aria-controls="tab-geral" aria-selected="true">
+            <i class="bi bi-building"></i> Geral
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tab-template-btn" data-bs-toggle="tab" data-bs-target="#tab-template"
+                type="button" role="tab" aria-controls="tab-template" aria-selected="false">
+            <i class="bi bi-ui-checks-grid"></i> Template de Formulário
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="configTabsContent">
+    <div class="tab-pane fade show active" id="tab-geral" role="tabpanel" aria-labelledby="tab-geral-btn">
+        <div class="panel" style="max-width:720px">
+            <form method="post" novalidate>
+                {{ form.hidden_tag() }}
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        {{ form.nome_instituicao.label(class="form-label") }}
+                        {{ form.nome_instituicao(class="form-control") }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ form.direcao.label(class="form-label") }}
+                        {{ form.direcao(class="form-control") }}
+                    </div>
+                    <div class="col-12">
+                        {{ form.morada.label(class="form-label") }}
+                        {{ form.morada(class="form-control") }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ form.contacto.label(class="form-label") }}
+                        {{ form.contacto(class="form-control") }}
+                    </div>
+                    <div class="col-md-6">
+                        {{ form.email_contacto.label(class="form-label") }}
+                        {{ form.email_contacto(class="form-control" + (" is-invalid" if form.email_contacto.errors else "")) }}
+                        {% for erro in form.email_contacto.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                    </div>
+                    <div class="col-12">
+                        {{ form.rodape_pdf.label(class="form-label") }}
+                        {{ form.rodape_pdf(class="form-control") }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ form.origem_de.label(class="form-label") }}
+                        {{ form.origem_de(class="form-control") }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ form.origem_local.label(class="form-label") }}
+                        {{ form.origem_local(class="form-control") }}
+                    </div>
+                    <div class="col-md-4">
+                        {{ form.local_emissao.label(class="form-label") }}
+                        {{ form.local_emissao(class="form-control") }}
+                    </div>
+                </div>
+                <div class="mt-4">
+                    {{ form.submit(class="btn btn-navy") }}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="tab-template" role="tabpanel" aria-labelledby="tab-template-btn">
+        <div class="d-flex flex-wrap gap-2 align-items-center mb-3">
+            <div class="btn-group" role="group" aria-label="Escolher documento">
+                <a href="{{ url_for('admin.configuracoes', doc='saida') }}#template"
+                   class="btn btn-sm {{ 'btn-navy' if doc == 'saida' else 'btn-outline-navy' }}">
+                    Nota de Saída
+                </a>
+                <a href="{{ url_for('admin.configuracoes', doc='entrega') }}#template"
+                   class="btn btn-sm {{ 'btn-navy' if doc == 'entrega' else 'btn-outline-navy' }}">
+                    Nota de Entrega
+                </a>
+            </div>
+            <button type="button" class="btn btn-outline-secondary btn-sm ms-auto" disabled
+                    title="A edição do template vai ficar disponível em breve">
+                <i class="bi bi-pencil"></i> Editar <span class="badge-estado badge-secondary ms-1">Em breve</span>
+            </button>
+        </div>
+
+        <div class="mb-4" style="max-width:720px">
+            {% set nota = nota_exemplo %}
+            {% include template_documento %}
+        </div>
+
+        {% with campos = campos_modulo %}
+        {% include "admin/_campos_tabela.html" %}
+        {% endwith %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    if (window.location.hash === "#template") {
+        var btn = document.getElementById("tab-template-btn");
+        if (btn && window.bootstrap) {
+            new bootstrap.Tab(btn).show();
+        }
+    }
+})();
+</script>
+{% endblock %}

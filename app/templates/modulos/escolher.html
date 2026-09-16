@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Escolher módulo · {{ app_name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="{{ asset('css/style.css') }}" rel="stylesheet">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/logo_std_stacked - Cropped.png') }}">
+</head>
+
+<body class="modulo-body">
+    <div class="modulo-aurora" aria-hidden="true"></div>
+    {% include "includes/flash.html" %}
+    <div class="modulo-shell">
+        <header class="modulo-topo">
+            <img src="{{ url_for('static', filename='assets/logo_std_stacked - Cropped.png') }}" alt="Standard Bank" class="modulo-logo">
+            <div class="modulo-topo-user">
+                <span class="modulo-topo-avatar">{{ current_user.nome[0] | upper if current_user.nome else "U" }}</span>
+                <span class="modulo-topo-meta">
+                    <strong>{{ current_user.nome }}</strong>
+                    <small>{{ current_user.perfil | perfil_label }}</small>
+                </span>
+            </div>
+        </header>
+
+        <main class="modulo-conteudo">
+            <div class="modulo-intro">
+                <h1>Escolha o módulo onde quer trabalhar.</h1>
+                <p class="modulo-sub">Cada módulo tem o seu próprio fluxo, aprovações e assinaturas digitais.</p>
+            </div>
+
+            <div class="modulo-cartoes">
+                {% for chave, m in modulos.items() %}
+                {% set ativo = (chave == modulo_selecionado) %}
+                <a class="modulo-cartao{% if not m.disponivel %} is-off{% endif %}{% if ativo %} is-atual{% endif %}" {% if m.disponivel %}href="{{ url_for('modulos.entrar', nome=chave) }}" {% else %}aria-disabled="true" {% endif %}>
+                    <span class="modulo-cartao-top">
+                        <span class="modulo-cartao-icone"><i class="bi {{ m.icone }}"></i></span>
+                        {% if ativo %}
+                        <span class="modulo-cartao-tag is-atual"><i class="bi bi-check-circle-fill"></i> Módulo atual</span>
+                        {% elif not m.disponivel %}
+                        <span class="modulo-cartao-tag is-soon">Em breve</span>
+                        {% endif %}
+                    </span>
+                    <span class="modulo-cartao-corpo">
+                        <span class="modulo-cartao-nome">{{ m.nome }}</span>
+                        <span class="modulo-cartao-desc">{{ m.descricao }}</span>
+                    </span>
+                    <span class="modulo-cartao-acao">
+                        <span>{% if not m.disponivel %}Indisponível{% elif ativo %}Continuar{% else %}Entrar{% endif %}</span>
+                        <i class="bi bi-arrow-right"></i>
+                    </span>
+                </a>
+                {% endfor %}
+            </div>
+        </main>
+
+        <footer class="modulo-rodape">
+            <span class="modulo-rodape-info">
+                <span>{{ app_name }}</span>
+                <span class="modulo-rodape-dot">•</span>
+                <span>Direcção de Informática</span>
+            </span>
+            <a href="{{ url_for('auth.logout') }}" class="modulo-sair">
+                <i class="bi bi-box-arrow-right"></i><span>Terminar sessão</span>
+            </a>
+        </footer>
+    </div>
+</body>
+
+</html>

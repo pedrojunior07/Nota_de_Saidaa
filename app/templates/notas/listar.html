@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% from "macros.html" import estado_badge, render_paginacao_compacta %}
+{% block title %}Notas de Saída{% endblock %}
+{% block heading %}Notas de saída{% endblock %}
+{% block subtitle %}Pesquisa por referência Remedy, colaborador, estado ou período.{% endblock %}
+
+{% block content %}
+{% set qs = request.args.to_dict() %}
+{% set _ = qs.pop('estado', none) %}
+{% set _ = qs.pop('pagina', none) %}
+<div class="row g-3 stat-grid mb-1">
+    <div class="col-6 col-xl">
+        <a class="stat-card stat-card-link {{ 'is-active' if not filtros.estado }}" href="{{ url_for('notas.listar', **qs) }}">
+            <span class="stat-icon navy"><i class="bi bi-journal-richtext"></i></span>
+            <div>
+                <small>Total</small>
+                <strong>{{ stats.total }}</strong>
+            </div>
+        </a>
+    </div>
+    {% if current_user.is_aprovador() %}
+    <div class="col-6 col-xl">
+        <a class="stat-card stat-card-link" href="{{ url_for('aprovacoes.listar') }}">
+            <span class="stat-icon warning"><i class="bi bi-hourglass-split"></i></span>
+            <div>
+                <small>Pendentes</small>
+                <strong>{{ stats.pendentes }}</strong>
+            </div>
+        </a>
+    </div>
+    {% endif %}
+    {% if current_user.is_tecnico() %}
+    <div class="col-6 col-xl">
+        <a class="stat-card stat-card-link {{ 'is-active' if filtros.estado == 'aprovada' }}" href="{{ url_for('notas.listar', estado='aprovada', **qs) }}">
+            <span class="stat-icon info"><i class="bi bi-person-check"></i></span>
+            <div>
+                <small>Aprovada</small>
+                <strong>{{ stats.aprovadas }}</strong>
+            </div>
+        </a>
+    </div>
+    {% endif %}
+    <div class="col-6 col-xl">
+        <a class="stat-card stat-card-link {{ 'is-active' if filtros.estado == 'concluida' }}" href="{{ url_for('notas.listar', estado='concluida', **qs) }}">
+            <span class="stat-icon green"><i class="bi bi-patch-check"></i></span>
+            <div>
+                <small>Concluída</small>
+                <strong>{{ stats.concluidas }}</strong>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-xl">
+        <a class="stat-card stat-card-link {{ 'is-active' if filtros.estado == 'rejeitada' }}" href="{{ url_for('notas.listar', estado='rejeitada', **qs) }}">
+            <span class="stat-icon red"><i class="bi bi-x-octagon"></i></span>
+            <div>
+                <small>Rejeitada</small>
+                <strong>{{ stats.rejeitadas }}</strong>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="panel mb-3">
+    <form class="filter-form" method="get">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label">Referência</label>
+                <input type="text" name="referencia" value="{{ filtros.referencia }}" class="form-control" placeholder="INC000...">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Colaborador</label>
+                <input type="text" name="colaborador" value="{{ filtros.colaborador }}" class="form-control" placeholder="Nome ou e-mail">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Estado</label>
+                <select name="estado" class="form-select">
+                    <option value="">Todos</option>
+                    {% for valor, label in estados.items() %}
+                    <option value="{{ valor }}" {% if filtros.estado == valor %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">De</label>
+                <input type="date" name="data_inicio" value="{{ filtros.data_inicio }}" class="form-control">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Até</label>
+                <input type="date" name="data_fim" value="{{ filtros.data_fim }}" class="form-control">
+            </div>
+        </div>
+        <div class="mt-3 d-flex gap-2">
+            <button class="btn btn-navy" type="submit"><i class="bi bi-search"></i> Pesquisar</button>
+            <a class="btn btn-outline-secondary" href="{{ url_for('notas.listar') }}">Limpar</a>
+        </div>
+    </form>
+</div>
+
+{% if current_user.is_tecnico() %}
+<div class="d-flex justify-content-end mb-3">
+    <button type="button" class="btn btn-outline-navy" data-bs-toggle="modal" data-bs-target="#modalCarregarNota">
+        <i class="bi bi-upload"></i> Carregar nota
+    </button>
+</div>
+{% endif %}
+
+<div class="panel">
+    <div class="table-responsive">
+        <table class="table table-corporate align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Nr. Ref.</th>
+                    <th>Remedy</th>
+                    <th>Para</th>
+                    <th>Origem</th>
+                    <th>Emissão</th>
+                    <th>Estado</th>
+                    <th aria-label="Ações"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for nota in paginacao.items %}
+                <tr class="linha-clicavel" data-href="{{ url_for('notas.detalhe', nota_id=nota.id) }}"
+                    tabindex="0" role="link" aria-label="Abrir nota {{ nota.numero_documento }}">
+                    <td>{{ nota.numero_documento }}</td>
+                    <td><span class="ref">{{ nota.numero_referencia }}</span></td>
+                    <td>
+                        <div>{{ nota.funcionario }}</div>
+                        <small class="text-muted">{{ nota.email_funcionario }}</small>
+                    </td>
+                    <td>{{ nota.origem_local }}</td>
+                    <td>{{ nota.data_emissao | formatar_data }}</td>
+                    <td>{{ estado_badge(nota.estado) }}</td>
+                    <td class="text-end">
+                        {% if nota.pode_editar(current_user) %}
+                        <form method="post" action="{{ url_for(request.blueprint ~ '.apagar', nota_id=nota.id) }}"
+                              data-confirm="Tem a certeza de que deseja apagar esta nota?">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Apagar nota" aria-label="Apagar nota">
+                                <i class="bi bi-trash3" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-5">Nenhuma nota encontrada com os critérios indicados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {{ render_paginacao_compacta(paginacao, "notas.listar") }}
+</div>
+
+{% if current_user.is_tecnico() %}
+<div class="modal fade" id="modalCarregarNota" tabindex="-1" aria-labelledby="modalCarregarNotaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('notas.carregar') }}" enctype="multipart/form-data">
+                {{ form_carregar.hidden_tag() }}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalCarregarNotaLabel">Carregar nota existente</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">
+                        Regista uma nota já existente (ex.: documento antigo em PDF) diretamente nesta
+                        listagem, sem passar pelo formulário completo de criação.
+                    </p>
+                    <div class="mb-3">
+                        {{ form_carregar.numero_referencia.label(class="form-label") }}
+                        {{ form_carregar.numero_referencia(class="form-control") }}
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-7">
+                            {{ form_carregar.funcionario.label(class="form-label") }}
+                            {{ form_carregar.funcionario(class="form-control") }}
+                        </div>
+                        <div class="col-md-5">
+                            {{ form_carregar.email_funcionario.label(class="form-label") }}
+                            {{ form_carregar.email_funcionario(class="form-control") }}
+                        </div>
+                    </div>
+                    <div class="row g-2 mt-0">
+                        <div class="col-md-4">
+                            {{ form_carregar.origem_local.label(class="form-label") }}
+                            {{ form_carregar.origem_local(class="form-control") }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form_carregar.data_emissao.label(class="form-label") }}
+                            {{ form_carregar.data_emissao(class="form-control") }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form_carregar.estado.label(class="form-label") }}
+                            {{ form_carregar.estado(class="form-select") }}
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        {{ form_carregar.ficheiro.label(class="form-label") }}
+                        <label class="file-drop" id="fileDropCarregarNota">
+                            {{ form_carregar.ficheiro(class="file-drop-input", accept="application/pdf", id="inputCarregarNotaFicheiro") }}
+                            <span class="file-drop-icon"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i></span>
+                            <span class="file-drop-texts">
+                                <strong class="file-drop-title">
+                                    <i class="bi bi-upload" aria-hidden="true"></i> Escolher ficheiro
+                                </strong>
+                                <span class="file-drop-hint" id="fileDropCarregarNotaHint">Nenhum ficheiro selecionado.</span>
+                                <span class="file-drop-note">Só PDF.</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    {{ form_carregar.carregar(class="btn btn-navy") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if current_user.is_tecnico() %}
+<script>
+(function () {
+    var input = document.getElementById("inputCarregarNotaFicheiro");
+    var hint = document.getElementById("fileDropCarregarNotaHint");
+    if (!input || !hint) return;
+    input.addEventListener("change", function () {
+        var ficheiro = input.files && input.files[0];
+        hint.textContent = ficheiro ? ficheiro.name : "Nenhum ficheiro selecionado.";
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

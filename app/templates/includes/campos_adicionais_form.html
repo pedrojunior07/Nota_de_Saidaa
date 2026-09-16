@@ -1,0 +1,52 @@
+{% if campos_extra %}
+<div class="panel mb-3">
+    <div class="panel-head">
+        <h2>Campos adicionais</h2>
+    </div>
+    <div class="row g-3">
+        {% for campo in campos_extra %}
+        {% set valor = valores_extra.get(campo.id) or '' %}
+        <div class="col-md-6">
+            {% if campo.tipo != 'checkbox' %}
+            <label class="form-label" for="campo_{{ campo.id }}">
+                {{ campo.rotulo }}{% if campo.obrigatorio %} <span class="text-danger">*</span>{% endif %}
+            </label>
+            {% endif %}
+
+            {% if campo.tipo == 'texto' %}
+            <input type="text" class="form-control" id="campo_{{ campo.id }}" name="campo_{{ campo.id }}"
+                   value="{{ valor }}" {% if campo.obrigatorio %}required{% endif %}>
+
+            {% elif campo.tipo == 'numero' %}
+            <input type="number" class="form-control" id="campo_{{ campo.id }}" name="campo_{{ campo.id }}"
+                   value="{{ valor }}" {% if campo.obrigatorio %}required{% endif %}>
+
+            {% elif campo.tipo == 'data' %}
+            <input type="date" class="form-control" id="campo_{{ campo.id }}" name="campo_{{ campo.id }}"
+                   value="{{ valor }}" {% if campo.obrigatorio %}required{% endif %}>
+
+            {% elif campo.tipo == 'textarea' %}
+            <textarea class="form-control" id="campo_{{ campo.id }}" name="campo_{{ campo.id }}" rows="3"
+                      {% if campo.obrigatorio %}required{% endif %}>{{ valor }}</textarea>
+
+            {% elif campo.tipo == 'checkbox' %}
+            <div class="form-check mt-4">
+                <input type="checkbox" class="form-check-input" id="campo_{{ campo.id }}" name="campo_{{ campo.id }}"
+                       value="1" {% if valor == '1' %}checked{% endif %}>
+                <label class="form-check-label" for="campo_{{ campo.id }}">{{ campo.rotulo }}</label>
+            </div>
+
+            {% elif campo.tipo == 'select' %}
+            <select class="form-select" id="campo_{{ campo.id }}" name="campo_{{ campo.id }}"
+                    {% if campo.obrigatorio %}required{% endif %}>
+                <option value="">Selecione…</option>
+                {% for opcao in campo.lista_opcoes() %}
+                <option value="{{ opcao }}" {% if valor == opcao %}selected{% endif %}>{{ opcao }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

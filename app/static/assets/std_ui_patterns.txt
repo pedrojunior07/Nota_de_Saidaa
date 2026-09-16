@@ -1,0 +1,36 @@
+primary/color - #0033AA
+accent/1-color - #00008C
+PW Primary Colours/Blue Dark - #0A2240
+secondary/color - #0051FF
+warning/color - #FF8A00
+negative/color - #E31E46
+positive/color - #008545
+
+Primary Colors - In use
+secondary/135-color - #003FCA
+
+Text Colors / Neutrals
+neutral/medium-grey-color - #222E37
+neutral/light-grey-color - #465463
+
+Background / Neutrals
+neutrals/white - #FFFFFF
+neutral/dark-grey-color -#02070D
+neutral/pale-grey-25-color - #F4F5F7
+
+Container Design 
+neutrals/white - #FFFFFF
+
+---------------------
+3.0 Public Web Desktop
+H1/Main title - Name- Display PW only/dxxl_regular, Font - Benton Sans Pro, Regular, neutral/medium-grey-color - #222E37, Weight - 400 ,Size - 48px, Line height - 130%, Letter spacing - 0px
+H2/Page title - Display PW only/dxl_regular, Benton Sans Pro, Regular, neutrals/medium-grey (text-body) - #1A314D, 400, 42px, 130%, 0px
+H3/Module Title - 24/xxl_medium - Benton Sans Pro, Medium, neutral/medium-grey-color - #222E37, 500, 24px, 130%, 0px
+H4/Module subtitle - 28/xxxl_regular, Benton Sans Pro,400, Regular,28px,130%,0px
+Entrance Text-20/xl_regular, Benton Sans Pro, 400,Regular,20px,130%,0px
+Body text-16/m_regular_body_1_dbl, Benton Sans Pro,400,Regular,16px,150%,0%
+H5/Notes-12/xs_medium_data, Benton Sans Pro,500,Medium,12px,130%,0px
+H6-18/l_regular,Benton Sans Pro,400, Regular,18px, 130%, 0px
+Numbers (big) - 32/xxxxl_regular, Benton Sans Pro,400,Regular,32px,130%,0px
+Numbers (small)-20/xl_regular,Benton Sans Pro,400,Regular,20px,130%,0px
+Link - 14/BUTTON _s_bold,Benton Sans Pro,700,Bold,14px,16px,0px,uppercase

@@ -1,0 +1,1 @@
+"""Formulários WTForms da aplicação."""

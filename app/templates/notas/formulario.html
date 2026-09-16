@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% set nota = nota|default(none) %}
+{% set sig_url = url_assinatura(current_user.assinatura_path) or (url_assinatura(nota.assinatura_entregue_path) if nota else none) %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block heading %}{{ titulo }}{% endblock %}
+{% block subtitle %}{% endblock %}
+{% block body_class %}nota-form-page{% endblock %}
+
+{% block extra_head %}
+<link href="https://fonts.googleapis.com/css2?family=Tinos:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<form method="post" id="formNota" novalidate>
+    {{ form.hidden_tag() }}
+    {% set _ed = ASSINATURA_DEFAULTS['entregue'] %}
+    <input type="hidden" name="assinatura_x" id="assinatura_x" value="{{ nota.assinatura_entregue_x if nota and nota.assinatura_entregue_x is not none else _ed.x }}">
+    <input type="hidden" name="assinatura_y" id="assinatura_y" value="{{ nota.assinatura_entregue_y if nota and nota.assinatura_entregue_y is not none else _ed.y }}">
+    <input type="hidden" name="assinatura_w" id="assinatura_w" value="{{ nota.assinatura_entregue_w if nota and nota.assinatura_entregue_w is not none else _ed.w }}">
+    <input type="hidden" name="assinatura_h" id="assinatura_h" value="{{ nota.assinatura_entregue_h if nota and nota.assinatura_entregue_h is not none else _ed.h }}">
+
+    <div class="nota-form-scroll">
+        <div class="panel mb-3">
+            <div class="panel-head">
+                <h2>Cabeçalho</h2>
+            </div>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">De</label>
+                    <input type="text" class="form-control" value="{{ config_instituicao.origem_de if config_instituicao else 'Informática' }}" readonly>
+                </div>
+                <div class="col-md-4">
+                    {{ form.origem_local.label(class="form-label") }}
+                    {{ form.origem_local(class="form-control" + (" is-invalid" if form.origem_local.errors else "")) }}
+                    {% for erro in form.origem_local.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4 destinatario-email" id="destinatario"
+                     data-search-url="{{ url_for('notas.diretorio_pesquisar') }}">
+                    {{ form.email_funcionario.label(class="form-label") }}
+                    <div class="destinatario-campo">
+                        <i class="bi bi-search destinatario-icone" aria-hidden="true"></i>
+                        {{ form.email_funcionario(class="form-control" + (" is-invalid" if form.email_funcionario.errors else ""),
+                            id="email_funcionario", autocomplete="off", role="combobox",
+                            **{"aria-autocomplete": "list", "aria-expanded": "false", "aria-controls": "destinatarioResultados"}) }}
+                        <div class="destinatario-resultados" id="destinatarioResultados" role="listbox" hidden></div>
+                    </div>
+                    {% for erro in form.email_funcionario.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    {{ form.funcionario.label(class="form-label") }}
+                    {{ form.funcionario(class="form-control" + (" is-invalid" if form.funcionario.errors else ""), id="funcionario") }}
+                    {% for erro in form.funcionario.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    {{ form.departamento.label(class="form-label") }}
+                    {{ form.departamento(class="form-control" + (" is-invalid" if form.departamento.errors else ""),
+                        id="departamento", placeholder="Ex.: Recursos Humanos") }}
+                    {% for erro in form.departamento.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                </div>
+                <div class="col-md-2">
+                    {{ form.local_emissao.label(class="form-label") }}
+                    {{ form.local_emissao(class="form-control" + (" is-invalid" if form.local_emissao.errors else "")) }}
+                </div>
+                <div class="col-md-2">
+                    {{ form.data_emissao.label(class="form-label") }}
+                    {{ form.data_emissao(class="form-control" + (" is-invalid" if form.data_emissao.errors else "")) }}
+                    {% for erro in form.data_emissao.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Nr. Ref.</label>
+                    <input type="text" class="form-control" value="{% if nota %}{{ nota.numero_documento }}{% else %}Atribuído automaticamente{% endif %}" readonly>
+                </div>
+                <div class="col-md-4">
+                    {{ form.numero_referencia.label(class="form-label") }}
+                    {{ form.numero_referencia(class="form-control" + (" is-invalid" if form.numero_referencia.errors else "")) }}
+                    {% for erro in form.numero_referencia.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    {{ form.motivo.label(class="form-label") }}
+                    {{ form.motivo(class="form-select" + (" is-invalid" if form.motivo.errors else ""), id="motivo") }}
+                    {% for erro in form.motivo.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                    <div id="motivoOutroWrap"{% if form.motivo.data != 'Outro' %} hidden{% endif %}>
+                        {{ form.motivo_outro(class="form-control mt-2" + (" is-invalid" if form.motivo_outro.errors else ""),
+                            id="motivo_outro", placeholder="Especifique o motivo") }}
+                        {% for erro in form.motivo_outro.errors %}<div class="invalid-feedback d-block">{{ erro }}</div>{% endfor %}
+                    </div>
+                </div>
+                <div class="col-12">
+                    {{ form.observacao.label(class="form-label") }}
+                    {{ form.observacao(class="form-control") }}
+                </div>
+            </div>
+        </div>
+
+        <div class="panel mb-3">
+            <div class="panel-head">
+                <h2>Material a entregar</h2>
+                <button type="button" class="btn btn-sm btn-outline-navy" id="btnAddItem">
+                    <i class="bi bi-plus-lg"></i> Adicionar item
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-corporate align-middle" id="tabelaItens" data-tipos-sap='{{ tipos_item_sap | tojson }}'>
+                    <thead>
+                        <tr>
+                            <th style="width:10%">Quantidade</th>
+                            <th style="width:18%">Tipo</th>
+                            <th>Descrição</th>
+                            <th style="width:16%">N.º de série</th>
+                            <th style="width:16%">N.º de SAP (Opcional)</th>
+                            <th style="width:48px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in itens %}
+                        <tr class="linha-item">
+                            <td>
+                                <input type="number" name="quantidade" class="form-control" min="1" value="{{ item.quantidade or 1 }}">
+                            </td>
+                            <td>
+                                <select name="tipo_item" class="form-select">
+                                    {% for tipo in tipos_item %}
+                                    <option value="{{ tipo }}" {% if (item.tipo_item or 'Outro') == tipo %}selected{% endif %}>{{ tipo }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td><input type="text" name="descricao_item" class="form-control" required value="{{ item.descricao }}" placeholder="Ex.: Lenovo Thinkpad T14"></td>
+                            <td><input type="text" name="numero_serie" class="form-control" required value="{{ item.numero_serie or '' }}" placeholder="Ex.: PF-2DTWL9"></td>
+                            <td><input type="text" name="numero_sap" class="form-control" value="{{ item.numero_sap or '' }}" placeholder="Ex.: SAP-00123"></td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-remove" title="Remover">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% include "includes/campos_adicionais_form.html" %}
+
+        <div class="panel mb-3">
+            <div class="panel-head">
+                <h2>Minha assinatura</h2>
+            </div>
+
+            <div class="sig-slot {% if sig_url %}has-signature{% endif %}" id="sigSlot">
+                <input type="file" id="inputAssinatura" accept="image/png" hidden>
+                <button type="button" class="sig-upload-btn" id="btnUploadAssinatura" title="Carregar assinatura PNG" aria-label="Carregar assinatura PNG">
+                    <i class="bi bi-cloud-arrow-up"></i>
+                    <span>Carregar PNG</span>
+                </button>
+                <div class="sig-card" id="sigThumbWrap">
+                    {% if sig_url %}
+                    <img src="{{ sig_url }}" alt="Minha assinatura" class="sig-thumb">
+                    <button type="button" class="sig-delete-btn" id="btnApagarAssinatura" title="Eliminar assinatura" aria-label="Eliminar assinatura">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="nota-form-actions d-flex flex-wrap gap-2">
+        <a href="{{ url_for('notas.listar') }}" class="btn btn-outline-secondary">Cancelar</a>
+        {{ form.guardar(class="btn btn-warning") }}
+        {% if not nota %}
+        {{ form.submeter(class="btn btn-navy", value="Confirmar") }}
+        {% else %}
+        {{ form.submeter(class="btn btn-navy") }}
+        {% endif %}
+        <button type="button" class="nota-scroll-hint" id="notaScrollHint" aria-label="Descer no formulário" title="Descer no formulário">
+            <i class="bi bi-chevron-down"></i>
+        </button>
+    </div>
+    {% if not nota %}
+    <p class="text-muted small mt-2 mb-0">
+        Depois de guardar, recolha a assinatura «Entregue Por» na página da nota para a submeter
+        para aprovação. O Aprovador assina em segundo lugar e o «Recebido» assina por último.
+    </p>
+    {% endif %}
+</form>
+
+<template id="tplItem">
+    <tr class="linha-item">
+        <td>
+            <input type="number" name="quantidade" class="form-control" min="1" value="1">
+        </td>
+        <td>
+            <select name="tipo_item" class="form-select">
+                {% for tipo in tipos_item %}
+                <option value="{{ tipo }}" {% if tipo == 'Outro' %}selected{% endif %}>{{ tipo }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td><input type="text" name="descricao_item" class="form-control" required placeholder="Ex.: Lenovo Thinkpad T14"></td>
+        <td><input type="text" name="numero_serie" class="form-control" required placeholder="Ex.: PF-2DTWL9"></td>
+        <td><input type="text" name="numero_sap" class="form-control" placeholder="Ex.: SAP-00123"></td>
+        <td>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-remove" title="Remover">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<div id="sigPreview" class="sig-preview" hidden>
+    <div class="sig-preview-dialog">
+        <div class="sig-hint" id="sigHint">
+            Arraste a assinatura para o espaço «Entregue Por». Use os cantos para redimensionar.
+        </div>
+        <div class="sig-preview-toolbar">
+            <h3>Pré-visualização da nota</h3>
+            <p>Posicione e redimensione o PNG sobre o documento antes de submeter.</p>
+        </div>
+        <div class="sig-preview-stage">
+            <article class="folha-nota" id="sigFolha"></article>
+        </div>
+        <div class="sig-preview-actions">
+            <button type="button" class="btn btn-outline-navy" id="sigVoltar">Voltar</button>
+            <button type="button" class="btn btn-navy" id="sigConfirmar">Confirmar</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script id="notaPreviewMeta" type="application/json">{{ {
+    "notaId": nota.id if nota else none,
+    "uploadUrl": url_for("notas.upload_minha_assinatura"),
+    "deleteUrl": url_for("notas.apagar_minha_assinatura"),
+    "assinaturaUrl": sig_url,
+    "criador": current_user.nome,
+    "instituicao": config_instituicao.nome_instituicao if config_instituicao else "Standard Bank",
+    "direcao": config_instituicao.direcao if config_instituicao else "Direcção de Informática",
+    "origemDe": config_instituicao.origem_de if config_instituicao else "Informática",
+    "nrRef": nota.numero_documento if nota else "Atribuído automaticamente"
+} | tojson }}</script>
+<script src="{{ asset('js/nota_form.js') }}"></script>
+<script src="{{ asset('js/destinatario.js') }}"></script>
+<script src="{{ asset('js/signature_zones.js') }}"></script>
+<script src="{{ asset('js/signature_placement.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,72 @@
+<article class="folha-nota">
+    <div class="folha-corpo">
+    <header class="folha-banner">
+        <img src="{{ url_for('static', filename='assets/logo_std_stacked - Cropped.png') }}" alt="Standard Bank">
+        <strong>Nota de Saida - Direção de Informática</strong>
+    </header>
+    <section class="folha-identificacao">
+        <p class="folha-linha"><strong>De: {{ nota.origem_local }}</strong></p>
+        <p class="folha-linha"><strong>Para: {{ nota.email_funcionario }}</strong></p>
+    </section>
+    <p class="folha-ref">
+        <strong>Nr. Ref.{{ nota.numero_documento }}</strong>
+        <span>{{ nota.local_emissao }}, aos {{ nota.data_emissao.strftime("%d/%m/%y") }}</span>
+    </p>
+    <p class="folha-remedy">{{ nota.numero_remedy }}</p>
+    <h3 class="folha-assunto">ASSUNTO: Nota de Saída</h3>
+    <p class="folha-intro">Vimos pela presente nota fazer entrega do seguinte material</p>
+    <section class="folha-materiais">
+        <div class="folha-cols"><span>Quantidade</span><span>Descrição</span></div>
+    <ul class="folha-itens">
+        {% for item in nota.itens %}
+        <li><span>{{ "%02d"|format(item.quantidade) }}</span><span>{{ item.descricao_impressa() }}</span></li>
+        {% endfor %}
+    </ul>
+    </section>
+    {% if nota.observacao %}
+    <p class="folha-nota-campo">Nota: {{ nota.observacao }}</p>
+    {% endif %}
+    <p class="folha-motivo">Motivo: {{ nota.motivo or "Atribuição" }}</p>
+    </div>
+    {#
+      Grelha 2x2 de assinaturas. Rótulo, linha e nome de cada campo são
+      fixados nas percentagens exatas do mapa (app/utils/assinatura_zonas.py),
+      as mesmas usadas no PDF — o que se posiciona no preview é o que sai
+      impresso. A imagem da assinatura é colocada por cima, dentro da área.
+    #}
+    {% set _nomes = {
+        'aprovador': (nota.aprovador.nome if nota.aprovador else ''),
+        'recebido': nota.funcionario,
+        'entregue': (nota.criador.nome if nota.criador else ''),
+        'seguranca': '',
+    } %}
+    {% set _lw = ASSINATURA_LINHA_LARGURA %}
+    <div class="folha-assinaturas">
+        {% for papel, campo in ASSINATURA_CAMPOS.items() %}
+        {% set _esq = campo.cx - _lw / 2 %}
+        <span class="folha-campo-rotulo" style="left:{{ _esq }}%;width:{{ _lw }}%;top:{{ campo.rotulo_y }}%">{{ campo.rotulo }}</span>
+        <span class="folha-campo-linha" style="left:{{ _esq }}%;width:{{ _lw }}%;top:{{ campo.linha_y }}%"></span>
+        {% if _nomes[papel] %}
+        <span class="folha-campo-nome" style="left:{{ _esq }}%;width:{{ _lw }}%;top:{{ campo.nome_y }}%">{{ _nomes[papel] }}</span>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% for papel, alt in [
+        ('aprovador', 'Assinatura do aprovador'),
+        ('recebido', 'Assinatura de quem recebeu'),
+        ('entregue', 'Assinatura de quem entregou'),
+        ('seguranca', 'Assinatura da segurança'),
+    ] %}
+    {% set prefixo = 'assinatura_' ~ papel %}
+    {% set url_sig = url_assinatura(nota|attr(prefixo ~ '_path')) %}
+    {% set d = ASSINATURA_DEFAULTS[papel] %}
+    {% if url_sig %}
+    <img class="folha-sig" alt="{{ alt }}" data-papel="{{ papel }}"
+         src="{{ url_sig }}"
+            data-left="{{ nota|attr(prefixo ~ '_x') if nota|attr(prefixo ~ '_x') is not none else d.x }}"
+            data-top="{{ nota|attr(prefixo ~ '_y') if nota|attr(prefixo ~ '_y') is not none else d.y }}"
+            data-width="{{ nota|attr(prefixo ~ '_w') if nota|attr(prefixo ~ '_w') is not none else d.w }}"
+            data-height="{{ nota|attr(prefixo ~ '_h') if nota|attr(prefixo ~ '_h') is not none else d.h }}">
+    {% endif %}
+    {% endfor %}
+</article>

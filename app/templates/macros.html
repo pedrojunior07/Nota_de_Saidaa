@@ -1,0 +1,52 @@
+{% macro render_paginacao_compacta(page_obj, endpoint) %}
+{% if page_obj.pages > 1 %}
+{% set qs = request.args.to_dict() %}
+{% set _ = qs.pop("pagina", none) %}
+<nav class="historico-paginacao" aria-label="Paginação do histórico">
+    <ul class="pagination pagination-sm mb-0">
+        <li class="page-item {% if not page_obj.has_prev %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for(endpoint, pagina=page_obj.prev_num, **qs) }}" aria-label="Página anterior" title="Página anterior">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+        </li>
+        <li class="page-item active" aria-current="page">
+            <span class="page-link">{{ page_obj.page }}</span>
+        </li>
+        <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for(endpoint, pagina=page_obj.next_num, **qs) }}" aria-label="Página seguinte" title="Página seguinte">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+{% endmacro %}
+{% macro estado_badge(estado, rotulo=none) -%}
+<span class="badge-estado badge-{{ estado | estado_badge }}">{{ rotulo or (estado | estado_label) }}</span>
+{%- endmacro %}
+
+{% macro render_paginacao(page_obj, endpoint) %}
+{% if page_obj.pages > 1 %}
+{% set qs = request.args.to_dict() %}
+{% set _ = qs.pop("pagina", none) %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        <li class="page-item {% if not page_obj.has_prev %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for(endpoint, pagina=page_obj.prev_num, **qs) }}">Anterior</a>
+        </li>
+        {% for p in page_obj.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+            <li class="page-item {% if p == page_obj.page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for(endpoint, pagina=p, **qs) }}">{{ p }}</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+        {% endfor %}
+        <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for(endpoint, pagina=page_obj.next_num, **qs) }}">Seguinte</a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+{% endmacro %}

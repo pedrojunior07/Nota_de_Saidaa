@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "macros.html" import render_paginacao_compacta %}
+{% block title %}Histórico{% endblock %}
+{% block heading %}Histórico de auditoria{% endblock %}
+{% block subtitle %}Registo completo das ações efetuadas sobre as notas de saída.{% endblock %}
+
+{% block content %}
+<div class="panel mb-3">
+    <form class="d-flex flex-wrap gap-2 align-items-center" method="get">
+        <input type="search" name="utilizador" value="{{ filtros.utilizador }}" class="form-control" style="max-width:280px" placeholder="Utilizador">
+        <input type="search" name="acao" value="{{ filtros.acao }}" class="form-control" style="max-width:280px" placeholder="Ação">
+        <button class="btn btn-navy" type="submit">Filtrar</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('admin.historico') }}">Limpar</a>
+    </form>
+</div>
+<div class="panel">
+    <div class="table-responsive">
+        <table class="table table-corporate align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Data / hora</th>
+                    <th>Nota</th>
+                    <th>Utilizador</th>
+                    <th>Ação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for evento in paginacao.items %}
+                <tr>
+                    <td>{{ evento.data_hora | formatar_data(true) }}</td>
+                    <td>
+                        {% if evento.nota %}
+                        <a href="{{ url_for('notas.detalhe', nota_id=evento.nota_id) }}">{{ evento.nota.numero_referencia }}</a>
+                        {% else %}
+                        #{{ evento.nota_id }}
+                        {% endif %}
+                    </td>
+                    <td>{{ evento.utilizador }}</td>
+                    <td>{{ evento.acao }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="text-muted text-center py-4">Sem eventos.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {{ render_paginacao_compacta(paginacao, "admin.historico") }}
+</div>
+{% endblock %}

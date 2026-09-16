@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "macros.html" import estado_badge %}
+{% block title %}Pendentes de aprovação{% endblock %}
+{% block heading %}Pendentes de aprovação{% endblock %}
+{% block subtitle %}Notas submetidas pelos técnicos à espera da sua decisão.{% endblock %}
+
+{% block content %}
+<div class="panel">
+    <div class="table-responsive">
+        <table class="table table-corporate align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Referência</th>
+                    <th>Destinatário</th>
+                    <th>Técnico</th>
+                    <th>Submetida</th>
+                    <th>Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tipo, nota in pendentes %}
+                <tr>
+                    <td>{{ "Nota de Saída" if tipo == "saida" else "Nota de Entrega" }}</td>
+                    <td><span class="ref">{{ nota.numero_referencia }}</span></td>
+                    <td>{{ nota.funcionario }}</td>
+                    <td>{{ nota.criador.nome if nota.criador else "—" }}</td>
+                    <td>{{ nota.data_criacao | formatar_data(true) }}</td>
+                    <td>{{ estado_badge(nota.estado) }}</td>
+                    <td class="text-end">
+                        <a href="{{ url_for('notas.detalhe' if tipo == 'saida' else 'entrega.detalhe', nota_id=nota.id) }}" class="btn btn-sm btn-navy">Analisar</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-5">Não existem notas pendentes neste momento.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

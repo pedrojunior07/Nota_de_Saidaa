@@ -1,0 +1,60 @@
+{% macro sig_preview(hint, sub_texto) %}
+<div id="sigPreview" class="sig-preview" hidden>
+    <div class="sig-preview-dialog">
+        <div class="sig-hint" id="sigHint">{{ hint }}</div>
+        <div class="sig-preview-toolbar">
+            <h3>Pré-visualização da nota</h3>
+            <p>{{ sub_texto }}</p>
+        </div>
+        <div class="sig-preview-stage" id="sigStage"></div>
+        <div class="sig-preview-actions">
+            <button type="button" class="btn btn-outline-navy" id="sigVoltar">Voltar</button>
+            <button type="button" class="btn btn-success" id="sigConfirmar">Confirmar e aprovar</button>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro sig_captura() %}
+<dialog id="sigCaptura" class="sig-capture">
+    <div class="sig-capture-dialog" aria-labelledby="sigCapturaTitulo">
+        <div class="sig-capture-head">
+            <h3 id="sigCapturaTitulo">Recolher assinatura</h3>
+            <button type="button" class="sig-capture-fechar" id="sigCapturaFechar" aria-label="Fechar">&times;</button>
+        </div>
+        <div class="sig-capture-pad-estado" id="sigPadEstado" hidden>
+            <i class="bi bi-pen"></i>
+            <span id="sigPadTexto">A verificar pad Wacom…</span>
+        </div>
+        <div class="sig-capture-canvas-wrap">
+            <canvas id="sigCanvas" width="640" height="240"></canvas>
+            <span class="sig-capture-baseline"></span>
+        </div>
+        <p class="text-muted small mb-2" id="sigCapturaAjuda">Assine no retângulo acima.</p>
+        <div class="sig-capture-actions">
+            <button type="button" class="btn btn-outline-navy" id="sigCapturaPad" hidden disabled>
+                <i class="bi bi-pen" aria-hidden="true"></i> Assinar no pad Wacom
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="sigCapturaLimpar">Limpar</button>
+            <button type="button" class="btn btn-navy" id="sigCapturaGuardar" disabled>Guardar assinatura</button>
+        </div>
+    </div>
+</dialog>
+{% endmacro %}
+
+{% macro sig_recebido_preview(hint, sub_texto) %}
+<div id="sigRecebidoPreview" class="sig-preview" hidden>
+    <div class="sig-preview-dialog">
+        <div class="sig-hint" id="sigRecebidoHint">{{ hint }}</div>
+        <div class="sig-preview-toolbar">
+            <h3>Posicionar assinatura</h3>
+            <p>{{ sub_texto }}</p>
+        </div>
+        <div class="sig-preview-stage" id="sigRecebidoStage"></div>
+        <div class="sig-preview-actions">
+            <button type="button" class="btn btn-outline-navy" id="sigRecebidoVoltar">Voltar</button>
+            <button type="button" class="btn btn-success" id="sigRecebidoConfirmar">Confirmar posição</button>
+        </div>
+    </div>
+</div>
+{% endmacro %}

@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% set nota = nota|default(none) %}
+{% set sig_url = url_assinatura(current_user.assinatura_path) %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block heading %}{{ titulo }}{% endblock %}
+{% block subtitle %}{% endblock %}
+{% block body_class %}nota-form-page{% endblock %}
+
+{% block content %}
+<form method="post" id="formNota" novalidate>
+    {{ form.hidden_tag() }}
+
+    <div class="nota-form-scroll">
+        <div class="panel mb-3">
+            <div class="panel-head"><h2>Cabeçalho</h2></div>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    {{ form.origem_local.label(class="form-label") }}
+                    {{ form.origem_local(class="form-control" + (" is-invalid" if form.origem_local.errors else "")) }}
+                    {% for erro in form.origem_local.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4 destinatario-email" id="destinatario"
+                     data-search-url="{{ url_for('notas.diretorio_pesquisar') }}">
+                    {{ form.email_funcionario.label(class="form-label") }}
+                    <div class="destinatario-campo">
+                        <i class="bi bi-search destinatario-icone" aria-hidden="true"></i>
+                        {{ form.email_funcionario(class="form-control" + (" is-invalid" if form.email_funcionario.errors else ""),
+                            id="email_funcionario", autocomplete="off", role="combobox",
+                            **{"aria-autocomplete": "list", "aria-expanded": "false", "aria-controls": "destinatarioResultados"}) }}
+                        <div class="destinatario-resultados" id="destinatarioResultados" role="listbox" hidden></div>
+                    </div>
+                    {% for erro in form.email_funcionario.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    {{ form.funcionario.label(class="form-label", text="Att: (destinatário)") }}
+                    {{ form.funcionario(class="form-control" + (" is-invalid" if form.funcionario.errors else ""), id="funcionario") }}
+                    {% for erro in form.funcionario.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    {{ form.departamento.label(class="form-label") }}
+                    {{ form.departamento(class="form-control" + (" is-invalid" if form.departamento.errors else ""),
+                        id="departamento", placeholder="Ex.: Balcão Filial Beira") }}
+                    {% for erro in form.departamento.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                </div>
+                <div class="col-md-2">
+                    {{ form.local_emissao.label(class="form-label") }}
+                    {{ form.local_emissao(class="form-control") }}
+                </div>
+                <div class="col-md-2">
+                    {{ form.data_emissao.label(class="form-label") }}
+                    {{ form.data_emissao(class="form-control" + (" is-invalid" if form.data_emissao.errors else "")) }}
+                    {% for erro in form.data_emissao.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">No. Ref.</label>
+                    <input type="text" class="form-control" value="{% if nota %}{{ nota.numero_documento }}{% else %}Atribuído automaticamente{% endif %}" readonly>
+                </div>
+                <div class="col-md-4">
+                    {{ form.numero_referencia.label(class="form-label") }}
+                    {{ form.numero_referencia(class="form-control" + (" is-invalid" if form.numero_referencia.errors else "")) }}
+                    {% for erro in form.numero_referencia.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                </div>
+                <div class="col-md-4">
+                    {{ form.motivo.label(class="form-label") }}
+                    {{ form.motivo(class="form-select" + (" is-invalid" if form.motivo.errors else ""), id="motivo") }}
+                    {% for erro in form.motivo.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                    <div id="motivoOutroWrap"{% if form.motivo.data != 'Outro' %} hidden{% endif %}>
+                        {{ form.motivo_outro(class="form-control mt-2", id="motivo_outro", placeholder="Especifique o motivo") }}
+                    </div>
+                </div>
+                <div class="col-12">
+                    {{ form.observacao.label(class="form-label", text="NB (observação)") }}
+                    {{ form.observacao(class="form-control", placeholder="Ex.: O referido material destina-se a Balcão Filial Beira") }}
+                </div>
+            </div>
+        </div>
+
+        <div class="panel mb-3">
+            <div class="panel-head">
+                <h2>Material a entregar</h2>
+                <button type="button" class="btn btn-sm btn-outline-navy" id="btnAddItem">
+                    <i class="bi bi-plus-lg"></i> Adicionar item
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-corporate align-middle" id="tabelaItens" data-tipos-sap='{{ tipos_item_sap | tojson }}'>
+                    <thead>
+                        <tr>
+                            <th style="width:8%">QTD.</th>
+                            <th style="width:16%">Tipo</th>
+                            <th style="width:18%">Destino</th>
+                            <th>Descrição</th>
+                            <th style="width:14%">N.º de série</th>
+                            <th style="width:14%">N.º de SAP (Opcional)</th>
+                            <th style="width:48px"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in itens %}
+                        <tr class="linha-item">
+                            <td>
+                                <input type="number" name="quantidade" class="form-control" min="1" value="{{ item.quantidade or 1 }}">
+                            </td>
+                            <td>
+                                <select name="tipo_item" class="form-select">
+                                    {% for tipo in tipos_item %}
+                                    <option value="{{ tipo }}" {% if (item.tipo_item or 'Outro') == tipo %}selected{% endif %}>{{ tipo }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td><input type="text" name="destino_item" class="form-control" value="{{ item.destino or '' }}" placeholder="Ex.: Balcão da Beira"></td>
+                            <td><input type="text" name="descricao_item" class="form-control" required value="{{ item.descricao }}" placeholder="Ex.: Laptop Dell 5430"></td>
+                            <td><input type="text" name="numero_serie" class="form-control" required value="{{ item.numero_serie or '' }}" placeholder="Ex.: D88J2T3"></td>
+                            <td><input type="text" name="numero_sap" class="form-control" value="{{ item.numero_sap or '' }}" placeholder="Ex.: SAP-00123"></td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-remove" title="Remover">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% include "includes/campos_adicionais_form.html" %}
+
+        <div class="panel mb-3">
+            <div class="panel-head"><h2>Minha assinatura («Entregue por»)</h2></div>
+            {% if sig_url %}
+            <div class="d-flex align-items-center gap-3">
+                <img src="{{ sig_url }}" alt="Minha assinatura" style="max-height:56px;border:1px solid var(--line);border-radius:8px;padding:6px">
+                <span class="text-muted">Será usada automaticamente no campo «Entregue por». Pode reposicioná-la na página da nota.</span>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">
+                Ainda não tem assinatura de perfil. Carregue-a em
+                <a href="{{ url_for('admin.utilizador_editar', user_id=current_user.id) }}">o meu perfil</a>
+                antes de submeter a nota.
+            </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="nota-form-actions d-flex flex-wrap gap-2">
+        <a href="{{ url_for('entrega.listar') }}" class="btn btn-outline-secondary">Cancelar</a>
+        {{ form.guardar(class="btn btn-warning") }}
+        {{ form.submeter(class="btn btn-navy") }}
+        <button type="button" class="nota-scroll-hint" id="notaScrollHint" aria-label="Descer no formulário" title="Descer">
+            <i class="bi bi-chevron-down"></i>
+        </button>
+    </div>
+    <p class="text-muted small mt-2 mb-0">
+        Depois de guardar, recolha a assinatura «Entregue por» na página da nota para a submeter.
+        O <strong>Aprovador</strong> assina em segundo lugar e «Recebido por» assina depois da
+        aprovação, concluindo a nota. A do <strong>Segurança</strong> é opcional.
+    </p>
+</form>
+
+<template id="tplItem">
+    <tr class="linha-item">
+        <td>
+            <input type="number" name="quantidade" class="form-control" min="1" value="1">
+        </td>
+        <td>
+            <select name="tipo_item" class="form-select">
+                {% for tipo in tipos_item %}
+                <option value="{{ tipo }}" {% if tipo == 'Outro' %}selected{% endif %}>{{ tipo }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td><input type="text" name="destino_item" class="form-control" placeholder="Ex.: Balcão da Beira"></td>
+        <td><input type="text" name="descricao_item" class="form-control" required placeholder="Ex.: Laptop Dell 5430"></td>
+        <td><input type="text" name="numero_serie" class="form-control" required placeholder="Ex.: D88J2T3"></td>
+        <td><input type="text" name="numero_sap" class="form-control" placeholder="Ex.: SAP-00123"></td>
+        <td>
+            <button type="button" class="btn btn-sm btn-outline-danger btn-remove" title="Remover">
+                <i class="bi bi-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ asset('js/nota_form.js') }}"></script>
+<script src="{{ asset('js/destinatario.js') }}"></script>
+{% endblock %}

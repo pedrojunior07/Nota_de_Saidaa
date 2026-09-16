@@ -1,0 +1,35 @@
+{# Espera no contexto: `campos` (lista de CampoDinamico, já filtrada pelo módulo ativo) #}
+<h3 class="h6 mb-3">Campos adicionais</h3>
+
+{% if campos %}
+<div class="panel">
+    <div class="row g-4">
+        {% for campo in campos %}
+        <div class="col-md-6">
+            <label class="form-label">
+                {{ campo.rotulo }}{% if campo.obrigatorio %} <span class="text-danger">*</span>{% endif %}
+            </label>
+            {% if campo.tipo == 'numero' %}
+            <input type="number" class="form-control" disabled placeholder="Resposta numérica">
+            {% elif campo.tipo == 'select' %}
+            <select class="form-select" disabled>
+                <option>Selecione…</option>
+                {% for opcao in campo.lista_opcoes() %}
+                <option>{{ opcao }}</option>
+                {% endfor %}
+            </select>
+            {% else %}
+            <input type="text" class="form-control" disabled placeholder="Resposta em texto">
+            {% endif %}
+            {% if not campo.ativo %}
+            <div class="mt-1"><span class="badge-estado badge-secondary">Inativo — não aparece no formulário</span></div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% else %}
+<div class="panel">
+    <p class="text-muted text-center py-4 mb-0">Ainda não há campos adicionais aqui.</p>
+</div>
+{% endif %}

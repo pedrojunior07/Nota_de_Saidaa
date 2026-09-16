@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "macros.html" import render_paginacao %}
+{% block title %}Utilizadores{% endblock %}
+{% block heading %}Utilizadores{% endblock %}
+{% block subtitle %}Gestão de contas e perfis de acesso.{% endblock %}
+
+{% block content %}
+<div class="panel mb-3">
+    <form class="d-flex flex-wrap gap-2 align-items-center" method="get">
+        <input type="search" name="q" value="{{ pesquisa }}" class="form-control" style="max-width:320px" placeholder="Nome ou utilizador">
+        <button class="btn btn-navy" type="submit">Pesquisar</button>
+        <a href="{{ url_for('admin.utilizador_novo') }}" class="btn btn-navy ms-auto">
+            <i class="bi bi-person-plus"></i> Novo utilizador
+        </a>
+    </form>
+</div>
+
+<div class="panel">
+    <div class="table-responsive">
+        <table class="table table-corporate align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Utilizador</th>
+                    <th>Perfil</th>
+                    <th>Estado</th>
+                    <th>Criado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in paginacao.items %}
+                <tr>
+                    <td>{{ u.nome }}</td>
+                    <td>{{ u.username }}</td>
+                    <td>{{ u.perfil | perfil_label }}</td>
+                    <td>
+                        {% if u.ativo %}
+                        <span class="badge-estado badge-success">Ativo</span>
+                        {% else %}
+                        <span class="badge-estado badge-secondary">Inativo</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ u.data_criacao | formatar_data }}</td>
+                    <td class="text-end text-nowrap">
+                        <a href="{{ url_for('admin.utilizador_editar', user_id=u.id) }}" class="btn btn-sm btn-outline-navy">Editar</a>
+                        {% if u.id != current_user.id %}
+                        <form method="post" action="{{ url_for('admin.utilizador_toggle', user_id=u.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-link" type="submit">
+                                {% if u.ativo %}Desativar{% else %}Ativar{% endif %}
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-muted text-center py-4">Sem utilizadores.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {{ render_paginacao(paginacao, "admin.utilizadores") }}
+</div>
+{% endblock %}

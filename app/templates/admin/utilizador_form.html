@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block heading %}{{ titulo }}{% endblock %}
+{% block subtitle %}Defina o perfil de acesso e as credenciais do utilizador.{% endblock %}
+
+{% set editando_proprio = utilizador and utilizador.id == current_user.id %}
+
+{% block content %}
+<div class="panel" style="max-width:720px">
+    <form method="post" novalidate {% if editando_proprio %}enctype="multipart/form-data"{% endif %}>
+        {{ form.hidden_tag() }}
+        <div class="row g-3">
+            <div class="col-md-6">
+                {{ form.nome.label(class="form-label") }}
+                {{ form.nome(class="form-control" + (" is-invalid" if form.nome.errors else "")) }}
+                {% for erro in form.nome.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+            </div>
+            <div class="col-md-6">
+                {{ form.username.label(class="form-label") }}
+                {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else ""), placeholder="A272754") }}
+                {% for erro in form.username.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+            </div>
+            <div class="col-md-6">
+                {{ form.perfil.label(class="form-label") }}
+                {{ form.perfil(class="form-select") }}
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <div class="form-check mb-2">
+                    {{ form.ativo(class="form-check-input") }}
+                    {{ form.ativo.label(class="form-check-label") }}
+                </div>
+            </div>
+            {% if editando_proprio %}
+            {% set sig_url = url_assinatura(utilizador.assinatura_path) %}
+            <div class="col-12">
+                <label class="form-label">A minha assinatura (PNG)</label>
+                <div class="user-sig-field" id="userSigField">
+                    <label class="user-sig-drop">
+                        {{ form.assinatura(class="user-sig-input", accept="image/png") }}
+                        <span class="user-sig-thumb-wrap">
+                            {% if sig_url %}
+                            <img src="{{ sig_url }}" alt="Assinatura atual" class="user-sig-thumb">
+                            {% else %}
+                            <i class="bi bi-vector-pen user-sig-placeholder" aria-hidden="true"></i>
+                            {% endif %}
+                        </span>
+                        <span class="user-sig-texts">
+                            <strong class="user-sig-title">
+                                <i class="bi bi-upload" aria-hidden="true"></i>
+                                {{ 'Substituir ficheiro PNG' if sig_url else 'Selecionar ficheiro PNG' }}
+                            </strong>
+                            <span class="user-sig-hint" id="userSigName">
+                                {{ 'Assinatura carregada — escolha um ficheiro para substituir.' if sig_url else 'Nenhum ficheiro selecionado.' }}
+                            </span>
+                            <span class="user-sig-note">PNG recomendado. Será redimensionada para impressão.</span>
+                        </span>
+                    </label>
+                    <label class="user-sig-check form-check">
+                        {{ form.assinatura_reutilizavel(class="form-check-input") }}
+                        {{ form.assinatura_reutilizavel.label(class="form-check-label") }}
+                    </label>
+                </div>
+            </div>
+            {% endif %}
+            <div class="col-md-6">
+                {{ form.password.label(class="form-label") }}
+                {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), placeholder="Mínimo 8 caracteres") }}
+                {% for erro in form.password.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+                {% if utilizador %}<small class="text-muted">Deixe em branco para manter a palavra-passe atual.</small>{% endif %}
+            </div>
+            <div class="col-md-6">
+                {{ form.password_confirm.label(class="form-label") }}
+                {{ form.password_confirm(class="form-control" + (" is-invalid" if form.password_confirm.errors else "")) }}
+                {% for erro in form.password_confirm.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+            </div>
+        </div>
+        <div class="mt-4 d-flex gap-2">
+            <a href="{{ url_for('admin.utilizadores') }}" class="btn btn-outline-secondary">Cancelar</a>
+            {{ form.submit(class="btn btn-navy") }}
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if editando_proprio %}
+<script>
+(function () {
+    const campo = document.getElementById("userSigField");
+    if (!campo) return;
+    const input = campo.querySelector(".user-sig-input");
+    const nome = document.getElementById("userSigName");
+    const wrap = campo.querySelector(".user-sig-thumb-wrap");
+    input?.addEventListener("change", () => {
+        const ficheiro = input.files && input.files[0];
+        if (!ficheiro) return;
+        nome.textContent = ficheiro.name;
+        if (ficheiro.type === "image/png") {
+            const url = URL.createObjectURL(ficheiro);
+            wrap.innerHTML = `<img src="${url}" alt="Nova assinatura" class="user-sig-thumb">`;
+        }
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

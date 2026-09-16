@@ -1,0 +1,84 @@
+<article class="folha-nota folha-entrega">
+    <div class="folha-corpo">
+        <header class="folha-banner">
+            <img src="{{ url_for('static', filename='assets/logo_std_stacked - Cropped.png') }}" alt="Standard Bank">
+            <strong>Nota de Entrega — Direção de Informática</strong>
+        </header>
+
+        <p class="fe-ref"><strong>No. Ref. {{ nota.numero_documento }}</strong></p>
+
+        <div class="fe-de">
+            <div>
+                <strong>DE :</strong>
+                <span>{{ config_instituicao.nome_instituicao if config_instituicao else 'Standard Bank, Moçambique' }}</span>
+                <span>{{ config_instituicao.morada if config_instituicao and config_instituicao.morada else 'Av. 10 de Novembro, n.º 420' }}</span>
+                {% if config_instituicao and config_instituicao.contacto %}<span>Tel: {{ config_instituicao.contacto }}</span>{% endif %}
+            </div>
+            <div>
+                <strong>Att:</strong>
+                <span class="fe-att-nome">{{ nota.funcionario }}</span>
+            </div>
+        </div>
+
+        <h3 class="folha-assunto">ASSUNTO:&nbsp;&nbsp;&nbsp;Nota de entrega</h3>
+        <p class="folha-intro">Vimos pela presente proceder à entrega do seguinte material</p>
+
+        <table class="fe-itens">
+            <thead>
+                <tr><th>QTD.</th><th>DESTINO</th><th>DESCRIÇÃO</th></tr>
+            </thead>
+            <tbody>
+                {% for item in nota.itens %}
+                <tr>
+                    <td>{{ "%02d"|format(item.quantidade) }}</td>
+                    <td>{{ item.destino or "" }}</td>
+                    <td>{{ item.descricao_impressa() }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <p class="fe-motivo">({{ nota.motivo or "Atribuição" }})</p>
+        {% if nota.observacao %}<p class="fe-nb">NB: {{ nota.observacao }}</p>{% endif %}
+        <p class="fe-att">Att: ({{ nota.email_funcionario }})</p>
+    </div>
+
+    {% set _nomes = {
+        'aprovador': (nota.aprovador.nome if nota.aprovador else ''),
+        'entregue': (nota.criador.nome if nota.criador else ''),
+        'recebido': nota.funcionario,
+        'seguranca': (nota.seguranca.nome if nota.seguranca else ''),
+    } %}
+    {% set _lw = ASSINATURA_LINHA_LARGURA_ENTREGA %}
+    <div class="folha-assinaturas folha-assinaturas--entrega">
+        {% for papel, campo in ASSINATURA_CAMPOS_ENTREGA.items() %}
+        {% set _esq = campo.cx - _lw / 2 %}
+        <span class="folha-campo-rotulo" style="left:{{ _esq }}%;width:{{ _lw }}%;top:{{ campo.rotulo_y }}%;text-align:left">{{ campo.rotulo }}</span>
+        <span class="folha-campo-linha" style="left:{{ _esq }}%;width:{{ _lw }}%;top:{{ campo.linha_y }}%"></span>
+        {% if _nomes[papel] %}
+        <span class="folha-campo-nome" style="left:{{ _esq }}%;width:{{ _lw }}%;top:{{ campo.nome_y }}%;text-align:left">{{ _nomes[papel] }}</span>
+        {% endif %}
+        {% endfor %}
+    </div>
+
+    <p class="fe-data">
+        {{ nota.local_emissao or "Maputo" }}, aos
+        {{ nota.data_emissao.strftime("%d") }} de
+        {{ ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"][nota.data_emissao.month - 1] }} de
+        {{ nota.data_emissao.year }}
+    </p>
+
+    {% for papel in ['aprovador', 'entregue', 'recebido', 'seguranca'] %}
+    {% set prefixo = 'assinatura_' ~ papel %}
+    {% set url_sig = url_assinatura(nota|attr(prefixo ~ '_path')) %}
+    {% set d = ASSINATURA_DEFAULTS_ENTREGA[papel] %}
+    {% if url_sig %}
+    <img class="folha-sig" alt="Assinatura {{ papel }}" data-papel="{{ papel }}"
+         src="{{ url_sig }}"
+         data-left="{{ nota|attr(prefixo ~ '_x') if nota|attr(prefixo ~ '_x') is not none else d.x }}"
+         data-top="{{ nota|attr(prefixo ~ '_y') if nota|attr(prefixo ~ '_y') is not none else d.y }}"
+         data-width="{{ nota|attr(prefixo ~ '_w') if nota|attr(prefixo ~ '_w') is not none else d.w }}"
+         data-height="{{ nota|attr(prefixo ~ '_h') if nota|attr(prefixo ~ '_h') is not none else d.h }}">
+    {% endif %}
+    {% endfor %}
+</article>

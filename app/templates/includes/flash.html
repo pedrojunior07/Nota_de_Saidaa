@@ -1,0 +1,101 @@
+{# Toasts globais — posição fixa, não afectam o layout da página. #}
+{% set _icones = {
+    "success": "bi-check-circle-fill",
+    "danger":  "bi-exclamation-octagon-fill",
+    "warning": "bi-exclamation-triangle-fill",
+    "info":    "bi-info-circle-fill",
+} %}
+<div class="toast-viewport" id="toastViewport" aria-live="polite" aria-atomic="true">
+    {% with mensagens = get_flashed_messages(with_categories=true) %}
+    {% for categoria, mensagem in mensagens %}
+    <div class="toast-item toast-{{ categoria }}" role="status" data-timeout="5000">
+        <i class="toast-icon bi {{ _icones.get(categoria, _icones['info']) }}" aria-hidden="true"></i>
+        <span class="toast-msg">{{ mensagem }}</span>
+        <button type="button" class="toast-close" aria-label="Fechar">&times;</button>
+    </div>
+    {% endfor %}
+    {% endwith %}
+</div>
+<script>
+(function () {
+    if (window.__toastsInit) return;
+    window.__toastsInit = true;
+
+    var DEFAULT_TIMEOUT = 5000;
+    var EXIT_MS = 260;
+
+    function ativar(toast) {
+        if (!toast || toast.__ligado) return;
+        toast.__ligado = true;
+
+        requestAnimationFrame(function () { toast.classList.add("is-visible"); });
+
+        var fechar = function () { descartar(toast); };
+        var botao = toast.querySelector(".toast-close");
+        if (botao) botao.addEventListener("click", fechar);
+
+        var ms = parseInt(toast.dataset.timeout, 10) || DEFAULT_TIMEOUT;
+        var temporizador = setTimeout(fechar, ms);
+
+        toast.addEventListener("mouseenter", function () { clearTimeout(temporizador); });
+        toast.addEventListener("mouseleave", function () { temporizador = setTimeout(fechar, 1500); });
+    }
+
+    function descartar(toast) {
+        if (!toast || toast.__aSair) return;
+        toast.__aSair = true;
+        toast.classList.remove("is-visible");
+        toast.classList.add("is-leaving");
+        setTimeout(function () { toast.remove(); }, EXIT_MS);
+    }
+
+    function viewport() {
+        var vp = document.getElementById("toastViewport");
+        if (!vp) {
+            vp = document.createElement("div");
+            vp.id = "toastViewport";
+            vp.className = "toast-viewport";
+            vp.setAttribute("aria-live", "polite");
+            vp.setAttribute("aria-atomic", "true");
+            document.body.appendChild(vp);
+        }
+        return vp;
+    }
+
+    var ICONES = {
+        success: "bi-check-circle-fill",
+        danger: "bi-exclamation-octagon-fill",
+        warning: "bi-exclamation-triangle-fill",
+        info: "bi-info-circle-fill",
+    };
+
+    // API para uso no cliente: showToast("Guardado", "success")
+    window.showToast = function (mensagem, tipo, opcoes) {
+        tipo = ICONES[tipo] ? tipo : "info";
+        opcoes = opcoes || {};
+        var toast = document.createElement("div");
+        toast.className = "toast-item toast-" + tipo;
+        toast.setAttribute("role", tipo === "danger" ? "alert" : "status");
+        toast.dataset.timeout = String(opcoes.timeout || DEFAULT_TIMEOUT);
+        toast.innerHTML =
+            '<i class="toast-icon bi ' + ICONES[tipo] + '" aria-hidden="true"></i>' +
+            '<span class="toast-msg"></span>' +
+            '<button type="button" class="toast-close" aria-label="Fechar">&times;</button>';
+        toast.querySelector(".toast-msg").textContent = mensagem;
+        viewport().appendChild(toast);
+        ativar(toast);
+        return toast;
+    };
+
+    function iniciar() {
+        var vp = document.getElementById("toastViewport");
+        if (vp) vp.querySelectorAll(".toast-item").forEach(ativar);
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", iniciar);
+    } else {
+        iniciar();
+    }
+})();
+</script>
