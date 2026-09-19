@@ -45,11 +45,17 @@ class Config:
     # ------------------------------------------------------------------
     AUTH_MODE = os.environ.get("AUTH_MODE", "local")
 
-    LDAP_HOST = os.environ.get("LDAP_HOST", "")          # ex.: dc01.standardbank.co.mz
+    LDAP_HOST = os.environ.get("LDAP_HOST", "")          # ex.: dc01.mz.sbicdirectory.com
     LDAP_PORT = int(os.environ.get("LDAP_PORT", "636"))
     LDAP_USE_SSL = os.environ.get("LDAP_USE_SSL", "1") != "0"
-    LDAP_DOMAIN = os.environ.get("LDAP_DOMAIN", "")      # domínio NetBIOS, ex.: SBM
-    LDAP_BASE_DN = os.environ.get("LDAP_BASE_DN", "")    # ex.: DC=standardbank,DC=co,DC=mz
+    # Domínio real (confirmado a partir da biblioteca interna do banco
+    # "jactive-directory"): mz.sbicdirectory.com. Não é NetBIOS — é o
+    # domínio de DNS, usado para montar o "principal" de bind no formato
+    # "utilizador@dominio" (ver app/utils/active_directory.py).
+    LDAP_DOMAIN = os.environ.get("LDAP_DOMAIN", "mz.sbicdirectory.com")
+    # Opcional: se ficar vazio, é derivada automaticamente de LDAP_DOMAIN
+    # (mz.sbicdirectory.com -> DC=mz,DC=sbicdirectory,DC=com).
+    LDAP_BASE_DN = os.environ.get("LDAP_BASE_DN", "")
 
     # ------------------------------------------------------------------
     # Pesquisa de destinatários no diretório (campo "Para" da Nota de Saída)

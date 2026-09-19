@@ -55,18 +55,26 @@ def autenticar(username, password):
 
 
 def _validar_ldap(username, password):
-    """Tenta autenticar ``username``/``password`` contra o Active Directory."""
+    """Tenta autenticar ``username``/``password`` contra o Active Directory.
+
+    Bind SIMPLE com o "principal" no formato "utilizador@domínio"
+    (userPrincipalName) — confirmado a partir da biblioteca interna do
+    banco jactive-directory (ver app/utils/active_directory.py). Não usa
+    NTLM nem o formato "DOMÍNIO\\utilizador".
+    """
     try:
-        from ldap3 import ALL, NTLM, Connection, Server
+        from ldap3 import ALL, SIMPLE, Connection, Server
         from ldap3.core.exceptions import LDAPException
     except ImportError:  # pragma: no cover
         current_app.logger.error("AUTH_MODE=ldap mas o pacote 'ldap3' não está instalado.")
         return False
 
+    from app.utils.active_directory import DOMINIO_OMISSAO, montar_principal
+
     host = current_app.config.get("LDAP_HOST")
-    dominio = current_app.config.get("LDAP_DOMAIN")
-    if not host or not dominio:
-        current_app.logger.error("LDAP_HOST / LDAP_DOMAIN não configurados.")
+    dominio = current_app.config.get("LDAP_DOMAIN") or DOMINIO_OMISSAO
+    if not host:
+        current_app.logger.error("LDAP_HOST não configurado.")
         return False
 
     servidor = Server(
@@ -76,13 +84,13 @@ def _validar_ldap(username, password):
         get_info=ALL,
         connect_timeout=8,
     )
-    conta = f"{dominio}\\{username}"
+    principal = montar_principal(username, dominio)
     try:
         conexao = Connection(
             servidor,
-            user=conta,
+            user=principal,
             password=password,
-            authentication=NTLM,
+            authentication=SIMPLE,
             auto_bind=True,
             receive_timeout=8,
         )

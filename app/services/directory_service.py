@@ -121,9 +121,14 @@ def _escapar_ldap(valor: str) -> str:
 def _procurar_ldap(termo: str, limite: int) -> list[dict]:
     """Pesquisa no Active Directory.
 
+    A Base DN, se não vier explícita em LDAP_BASE_DN, é derivada de
+    LDAP_DOMAIN (ex.: "mz.sbicdirectory.com" -> "DC=mz,DC=sbicdirectory,
+    DC=com") — ver app/utils/active_directory.py.
+
     Requer no ambiente:
-        LDAP_HOST, LDAP_BASE_DN, LDAP_BIND_DN, LDAP_BIND_PASSWORD
-        (opcionais: LDAP_PORT, LDAP_USE_SSL, LDAP_DIRECTORY_FILTER)
+        LDAP_HOST, LDAP_BIND_DN, LDAP_BIND_PASSWORD
+        (opcionais: LDAP_BASE_DN, LDAP_DOMAIN, LDAP_PORT, LDAP_USE_SSL,
+        LDAP_DIRECTORY_FILTER)
     """
     try:
         from ldap3 import ALL, SUBTREE, Connection, Server
@@ -134,22 +139,29 @@ def _procurar_ldap(termo: str, limite: int) -> list[dict]:
         )
         return []
 
+    from app.utils.active_directory import DOMINIO_OMISSAO, dominio_para_base_dn
+
     cfg = current_app.config
     host = cfg.get("LDAP_HOST")
-    base_dn = cfg.get("LDAP_BASE_DN")
+    base_dn = cfg.get("LDAP_BASE_DN") or dominio_para_base_dn(cfg.get("LDAP_DOMAIN") or DOMINIO_OMISSAO)
     bind_dn = cfg.get("LDAP_BIND_DN")
     bind_pw = cfg.get("LDAP_BIND_PASSWORD")
-    if not (host and base_dn and bind_dn and bind_pw):
+    if not (host and bind_dn and bind_pw):
         current_app.logger.error(
-            "Pesquisa no diretório: faltam LDAP_HOST / LDAP_BASE_DN / "
-            "LDAP_BIND_DN / LDAP_BIND_PASSWORD."
+            "Pesquisa no diretório: faltam LDAP_HOST / LDAP_BIND_DN / LDAP_BIND_PASSWORD."
         )
         return []
 
     termo_esc = _escapar_ldap(termo)
+    # O AD desta instituição nem sempre tem o atributo "mail" preenchido — o
+    # userPrincipalName (frequentemente já com formato de e-mail) é a
+    # alternativa fiável (confirmado na biblioteca interna jactive-directory,
+    # que identifica o utilizador só por sAMAccountName/userPrincipalName,
+    # nunca por "mail"). Por isso a pesquisa e os atributos pedidos cobrem
+    # os dois.
     filtro = cfg.get("LDAP_DIRECTORY_FILTER") or (
         "(&(objectClass=user)(objectCategory=person)"
-        "(|(mail=*{q}*)(displayName=*{q}*)(sAMAccountName={q}*)))"
+        "(|(mail=*{q}*)(userPrincipalName=*{q}*)(displayName=*{q}*)(sAMAccountName={q}*)))"
     )
     filtro = filtro.replace("{q}", termo_esc)
 
@@ -179,18 +191,37 @@ def _procurar_ldap(termo: str, limite: int) -> list[dict]:
             base_dn,
             filtro,
             search_scope=SUBTREE,
-            attributes=["mail", "displayName", "department", "title", "sAMAccountName"],
+            attributes=[
+                "mail",
+                "userPrincipalName",
+                "displayName",
+                "givenName",
+                "sn",
+                "department",
+                "title",
+                "sAMAccountName",
+            ],
             size_limit=limite,
         )
         pessoas: list[dict] = []
         for entrada in conexao.entries:
-            email = str(entrada.mail) if "mail" in entrada else ""
+            email = str(entrada.mail) if "mail" in entrada and entrada.mail else ""
+            if not email and "userPrincipalName" in entrada and entrada.userPrincipalName:
+                email = str(entrada.userPrincipalName)
             if not email:
                 continue
+            if "displayName" in entrada and entrada.displayName:
+                nome = str(entrada.displayName)
+            else:
+                partes = [
+                    str(entrada.givenName) if "givenName" in entrada and entrada.givenName else "",
+                    str(entrada.sn) if "sn" in entrada and entrada.sn else "",
+                ]
+                nome = " ".join(p for p in partes if p) or email
             pessoas.append(
                 {
                     "email": email,
-                    "nome": str(entrada.displayName) if "displayName" in entrada else email,
+                    "nome": nome,
                     "departamento": str(entrada.department) if "department" in entrada else "",
                     "cargo": str(entrada.title) if "title" in entrada else "",
                     "username": str(entrada.sAMAccountName) if "sAMAccountName" in entrada else "",
