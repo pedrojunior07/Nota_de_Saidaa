@@ -39,12 +39,13 @@ def numero_documento(nota):
     return f"{nota.id:06d}/{ano}"
 
 
-def descricao_item(item):
-    """Descrição impressa: modelo, seguido de Nr. de Série e SAP sempre
-    explícitos (mostra "N/A" quando não aplicável)."""
+def _linhas_item(item):
+    """As 3 linhas impressas por item: descrição, depois Nr. de Série e SAP
+    sempre explícitos (mostra "N/A" quando não aplicável), cada um na sua
+    própria linha para nunca ficarem ambíguos ou difíceis de ler."""
     serie = item.numero_serie or "N/A"
     sap = item.numero_sap or "N/A"
-    return f"{item.descricao or item.tipo_item} — Nr. Série: {serie} | SAP: {sap}"
+    return (item.descricao or item.tipo_item), f"Nr. Série: {serie}", f"SAP: {sap}"
 
 
 def _wrap(c, texto, fonte, tamanho, largura_max):
@@ -175,24 +176,34 @@ def gerar_pdf(nota, pasta_pdf):
     c.line(MARGEM_ESQ, linha_cabecalho, MARGEM_DIR, linha_cabecalho)
 
     linha_altura_min = 26.5
-    tamanho_desc = 10           # ligeiramente menor que o cabeçalho (11), para caber
-                                 # "Descrição — Nr. Série: X | SAP: Y" numa só linha
-                                 # na maioria dos casos; só quebra quando é mesmo longo
-    entrelinha = 11.5           # espaçamento entre a 1ª e a 2ª linha, quando há quebra
+    tamanho_desc = 11            # linha principal (modelo do item)
+    tamanho_meta = 9.5           # linhas secundárias (Nr. Série / SAP), indentadas
+    indent_meta = 12
+    entrelinha_titulo = 13       # espaçamento entre linhas do título, se quebrar
+    espaco_antes_meta = 12       # do fim do título até à linha "Nr. Série"
+    entrelinha_meta = 10.5       # de "Nr. Série" até "SAP"
     largura_desc_disponivel = MARGEM_DIR - col_desc_x - 4
     y = linha_cabecalho
     for item in nota.itens:
-        linhas_desc = _wrap(c, descricao_item(item), fonte, tamanho_desc, largura_desc_disponivel)
-        n_linhas = len(linhas_desc)
-        linha_altura = max(linha_altura_min, 17.5 + (n_linhas - 1) * entrelinha + 9)
+        titulo, linha_serie, linha_sap = _linhas_item(item)
+        linhas_titulo = _wrap(c, titulo, fonte, tamanho_desc, largura_desc_disponivel)
 
         y_texto = y - 17.5
         c.setFont(fonte, 11)
         c.drawCentredString(qtd_centro, y_texto, f"{item.quantidade:02d}")
-        c.setFont(fonte, tamanho_desc)
-        for i, linha_txt in enumerate(linhas_desc):
-            c.drawString(col_desc_x, y_texto - i * entrelinha, linha_txt)
 
+        c.setFont(fonte, tamanho_desc)
+        for i, linha_txt in enumerate(linhas_titulo):
+            c.drawString(col_desc_x, y_texto - i * entrelinha_titulo, linha_txt)
+        y_ultimo_titulo = y_texto - (len(linhas_titulo) - 1) * entrelinha_titulo
+
+        y_serie = y_ultimo_titulo - espaco_antes_meta
+        y_sap = y_serie - entrelinha_meta
+        c.setFont(fonte, tamanho_meta)
+        c.drawString(col_desc_x + indent_meta, y_serie, linha_serie)
+        c.drawString(col_desc_x + indent_meta, y_sap, linha_sap)
+
+        linha_altura = max(linha_altura_min, (y - y_sap) + 9)
         y -= linha_altura
         c.setLineWidth(0.35)
         c.line(MARGEM_ESQ, y, MARGEM_DIR, y)
