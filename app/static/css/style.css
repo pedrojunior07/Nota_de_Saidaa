@@ -1820,6 +1820,15 @@ body.sig-capture-open { overflow: hidden; }
     position: fixed;
     inset: 0;
     z-index: 1090;
+    /* O browser define, por padrão, width/height: fit-content num
+       <dialog> — isso ganha prioridade sobre o inset:0 e faz o elemento
+       encolher para caber no conteúdo, em vez de ocupar o ecrã todo.
+       Sem esta área cheia, o flex de centralização abaixo não tem à
+       volta o quê centralizar. Width/height 100% garante o overlay
+       inteiro; margin:0 evita que o "margin:auto" nativo do dialog
+       desloque essa área. */
+    width: 100%;
+    height: 100%;
     margin: 0;
     padding: 20px;
     border: none;
