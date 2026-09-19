@@ -96,8 +96,8 @@ def utilizadores():
 @perfis_requeridos(Perfil.ADMINISTRADOR.value, Perfil.TECNICO_ADMIN.value)
 def utilizador_novo():
     form = UserForm()
+    modo_local = (current_app.config.get("AUTH_MODE") or "local").lower() == "local"
     if form.validate_on_submit():
-        modo_local = (current_app.config.get("AUTH_MODE") or "local").lower() == "local"
         if modo_local and not form.password.data:
             flash("Em modo local defina uma palavra-passe para o novo utilizador.", "warning")
         else:
@@ -107,7 +107,7 @@ def utilizador_novo():
                 perfil=form.perfil.data,
                 ativo=form.ativo.data,
             )
-            if form.password.data:
+            if modo_local and form.password.data:
                 utilizador.definir_password(form.password.data)
             # A assinatura é pessoal: cada utilizador gere a sua própria, não
             # é definida pelo administrador ao criar/editar outra conta.
@@ -115,7 +115,12 @@ def utilizador_novo():
             db.session.commit()
             flash("Utilizador criado com sucesso.", "success")
             return redirect(url_for("admin.utilizadores"))
-    return render_template("admin/utilizador_form.html", form=form, titulo="Novo utilizador")
+    return render_template(
+        "admin/utilizador_form.html",
+        form=form,
+        titulo="Novo utilizador",
+        modo_local=modo_local,
+    )
 
 
 @bp.route("/utilizadores/<int:user_id>/editar", methods=["GET", "POST"])
@@ -126,12 +131,13 @@ def utilizador_editar(user_id):
     if utilizador is None:
         abort(404)
     form = UserForm(utilizador_original=utilizador, obj=utilizador)
+    modo_local = (current_app.config.get("AUTH_MODE") or "local").lower() == "local"
     if form.validate_on_submit():
         utilizador.nome = form.nome.data.strip()
         utilizador.username = form.username.data.strip().upper()
         utilizador.perfil = form.perfil.data
         utilizador.ativo = form.ativo.data
-        if form.password.data:
+        if modo_local and form.password.data:
             utilizador.definir_password(form.password.data)
         # A assinatura só pode ser gerida pelo próprio utilizador.
         if utilizador.id == current_user.id:
@@ -155,6 +161,7 @@ def utilizador_editar(user_id):
         form=form,
         titulo=f"Editar {utilizador.nome}",
         utilizador=utilizador,
+        modo_local=modo_local,
     )
 
 

@@ -62,6 +62,7 @@
                 </div>
             </div>
             {% endif %}
+            {% if modo_local %}
             <div class="col-md-6">
                 {{ form.password.label(class="form-label") }}
                 {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else ""), placeholder="Mínimo 8 caracteres") }}
@@ -73,6 +74,15 @@
                 {{ form.password_confirm(class="form-control" + (" is-invalid" if form.password_confirm.errors else "")) }}
                 {% for erro in form.password_confirm.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
             </div>
+            {% else %}
+            <div class="col-12">
+                <p class="text-muted small mb-0">
+                    <i class="bi bi-shield-lock" aria-hidden="true"></i>
+                    O início de sessão usa a palavra-passe do Active Directory (a mesma do computador/Windows) —
+                    não há palavra-passe para definir aqui.
+                </p>
+            </div>
+            {% endif %}
         </div>
         <div class="mt-4 d-flex gap-2">
             <a href="{{ url_for('admin.utilizadores') }}" class="btn btn-outline-secondary">Cancelar</a>
