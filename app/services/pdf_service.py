@@ -40,13 +40,28 @@ def numero_documento(nota):
 
 
 def descricao_item(item):
-    """Descrição impressa: modelo, número de série e, se houver, número de SAP."""
-    texto = item.descricao or item.tipo_item
-    if item.numero_serie:
-        texto = f"{texto}:{item.numero_serie}"
-    if item.numero_sap:
-        texto = f"{texto} (SAP: {item.numero_sap})"
-    return texto
+    """Descrição impressa: modelo, seguido de Nr. de Série e SAP sempre
+    explícitos (mostra "N/A" quando não aplicável)."""
+    serie = item.numero_serie or "N/A"
+    sap = item.numero_sap or "N/A"
+    return f"{item.descricao or item.tipo_item} — Nr. Série: {serie} | SAP: {sap}"
+
+
+def _wrap(c, texto, fonte, tamanho, largura_max):
+    """Quebra `texto` em linhas que cabem em `largura_max`, palavra a palavra."""
+    palavras = (texto or "").split()
+    linhas, atual = [], ""
+    for p in palavras:
+        teste = f"{atual} {p}".strip()
+        if c.stringWidth(teste, fonte, tamanho) <= largura_max:
+            atual = teste
+        else:
+            if atual:
+                linhas.append(atual)
+            atual = p
+    if atual:
+        linhas.append(atual)
+    return linhas or [""]
 
 
 def _linha_com_tracos(c, x, y, texto, x_fim, fonte, tamanho=11):
@@ -159,13 +174,25 @@ def gerar_pdf(nota, pasta_pdf):
     c.line(MARGEM_ESQ, linha_topo, MARGEM_DIR, linha_topo)
     c.line(MARGEM_ESQ, linha_cabecalho, MARGEM_DIR, linha_cabecalho)
 
-    linha_altura = 26.5
+    linha_altura_min = 26.5
+    tamanho_desc = 10           # ligeiramente menor que o cabeçalho (11), para caber
+                                 # "Descrição — Nr. Série: X | SAP: Y" numa só linha
+                                 # na maioria dos casos; só quebra quando é mesmo longo
+    entrelinha = 11.5           # espaçamento entre a 1ª e a 2ª linha, quando há quebra
+    largura_desc_disponivel = MARGEM_DIR - col_desc_x - 4
     y = linha_cabecalho
-    c.setFont(fonte, 11)
     for item in nota.itens:
+        linhas_desc = _wrap(c, descricao_item(item), fonte, tamanho_desc, largura_desc_disponivel)
+        n_linhas = len(linhas_desc)
+        linha_altura = max(linha_altura_min, 17.5 + (n_linhas - 1) * entrelinha + 9)
+
         y_texto = y - 17.5
+        c.setFont(fonte, 11)
         c.drawCentredString(qtd_centro, y_texto, f"{item.quantidade:02d}")
-        c.drawString(col_desc_x, y_texto, descricao_item(item))
+        c.setFont(fonte, tamanho_desc)
+        for i, linha_txt in enumerate(linhas_desc):
+            c.drawString(col_desc_x, y_texto - i * entrelinha, linha_txt)
+
         y -= linha_altura
         c.setLineWidth(0.35)
         c.line(MARGEM_ESQ, y, MARGEM_DIR, y)

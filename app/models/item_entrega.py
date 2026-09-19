@@ -20,12 +20,12 @@ class ItemEntrega(db.Model):
     nota = db.relationship("NotaEntrega", back_populates="itens")
 
     def descricao_impressa(self):
-        texto = self.descricao
-        if self.numero_serie:
-            texto = f"{texto}; S/N: {self.numero_serie}"
-        if self.numero_sap:
-            texto = f"{texto}; SAP: {self.numero_sap}"
-        return texto
+        """Descrição impressa: modelo, seguido de Nr. de Série e SAP sempre
+        explícitos (mostra "N/A" quando não aplicável), para nunca ficarem
+        escondidos ou ambíguos dentro do texto."""
+        serie = self.numero_serie or "N/A"
+        sap = self.numero_sap or "N/A"
+        return f"{self.descricao} — Nr. Série: {serie} | SAP: {sap}"
 
     def __repr__(self):
         return f"<ItemEntrega {self.tipo_item} x{self.quantidade}>"
