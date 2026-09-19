@@ -1352,6 +1352,18 @@ a.stat-card-link.is-active { border-color: var(--primary); box-shadow: inset 0 0
 }
 .folha-itens li span:last-child { min-width: 0; }
 .folha-itens .folha-inc { font-weight: 400; border-bottom: none; }
+.folha-item-desc {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+.folha-item-titulo { font-weight: 700; }
+.folha-item-meta {
+    font-weight: 400;
+    font-size: .82em;
+    margin-left: 12px;
+    color: var(--muted, #555);
+}
 .folha-nota-campo {
     margin: 0 0 16px;
 }

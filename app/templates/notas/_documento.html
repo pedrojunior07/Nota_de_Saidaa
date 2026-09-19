@@ -19,7 +19,14 @@
         <div class="folha-cols"><span>Quantidade</span><span>Descrição</span></div>
     <ul class="folha-itens">
         {% for item in nota.itens %}
-        <li><span>{{ "%02d"|format(item.quantidade) }}</span><span>{{ item.descricao_impressa() }}</span></li>
+        <li>
+            <span>{{ "%02d"|format(item.quantidade) }}</span>
+            <span class="folha-item-desc">
+                <strong class="folha-item-titulo">{{ item.descricao or item.tipo_item }}</strong>
+                <span class="folha-item-meta">Nr. Série: {{ item.numero_serie or "N/A" }}</span>
+                <span class="folha-item-meta">SAP: {{ item.numero_sap or "N/A" }}</span>
+            </span>
+        </li>
         {% endfor %}
     </ul>
     </section>
