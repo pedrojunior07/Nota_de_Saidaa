@@ -10,6 +10,7 @@
 {% if nota.pode_aprovar(current_user) %}
 <script id="aprovadorPreviewMeta" type="application/json">{{ {
     "notaId": nota.id,
+    "tipo": ("entrega" if request.blueprint == "entrega" else "saida"),
     "uploadUrl": url_for(request.blueprint ~ ".upload_minha_assinatura"),
     "deleteUrl": url_for(request.blueprint ~ ".apagar_minha_assinatura"),
     "assinaturaUrl": url_assinatura(current_user.assinatura_path)
