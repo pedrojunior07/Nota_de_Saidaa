@@ -1442,6 +1442,13 @@ a.stat-card-link.is-active { border-color: var(--primary); box-shadow: inset 0 0
     grid-template-columns: 1fr 1fr;
     gap: 4px 24px;
     margin-bottom: 12px;
+    border: 1px solid #111;
+    padding: 8px 12px;
+    position: relative;
+}
+.fe-de > div:first-child {
+    border-right: 1px solid #111;
+    padding-right: 12px;
 }
 .fe-de strong { display: block; }
 .fe-de span { display: block; }

@@ -28,7 +28,11 @@
                     title="Documento da nota" style="width:100%; height:80vh; border:1px solid var(--line); border-radius:8px;"></iframe>
         </div>
         {% else %}
+        {% if request.blueprint == 'entrega' %}
+        {% include "entrega/_documento.html" %}
+        {% else %}
         {% include "notas/_documento.html" %}
+        {% endif %}
         {% include "includes/campos_adicionais_exibir.html" %}
         {% endif %}
 
