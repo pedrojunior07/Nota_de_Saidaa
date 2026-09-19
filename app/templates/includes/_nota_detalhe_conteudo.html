@@ -55,7 +55,7 @@
         {% set sig_url = url_assinatura(current_user.assinatura_path) %}
         <div class="panel mb-3 border-warning mt-3">
             <div class="panel-head"><h2>Decisão de aprovação</h2></div>
-            <form method="post" action="{{ url_for('aprovacoes.decidir', nota_id=nota.id) }}" id="formDecisao">
+            <form method="post" action="{{ url_for('aprovacoes.decidir', tipo=('entrega' if request.blueprint == 'entrega' else 'saida'), nota_id=nota.id) }}" id="formDecisao">
                 {{ form_decisao.hidden_tag() }}
                 {% set _ad = ASSINATURA_DEFAULTS['aprovador'] %}
                 <input type="hidden" name="assinatura_x" id="assinatura_x" value="{{ nota.assinatura_aprovador_x if nota.assinatura_aprovador_x is not none else _ad.x }}">
