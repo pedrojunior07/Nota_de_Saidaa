@@ -1820,13 +1820,20 @@ body.sig-capture-open { overflow: hidden; }
     position: fixed;
     inset: 0;
     z-index: 1090;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     padding: 20px;
     background: rgba(5, 30, 58, .55);
 }
-.sig-capture[hidden] { display: none !important; }
+/* O <dialog> só deve ficar visível quando aberto via .showModal()/.close()
+   (atributo [open]). Sem este guard, o display:flex sobrepunha-se ao
+   display:none nativo do <dialog> fechado, fazendo o modal aparecer
+   sempre que era renderizado no HTML — mesmo sem o técnico clicar em
+   "Recolher assinatura". */
+.sig-capture[open] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.sig-capture:not([open]) { display: none !important; }
 .sig-capture-dialog {
     background: #fff;
     border-radius: 16px;

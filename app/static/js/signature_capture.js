@@ -570,6 +570,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     window.addEventListener("keydown", (ev) => {
-        if (ev.key === "Escape" && !modal.hidden) fechar();
+        if (ev.key === "Escape" && modal.open) fechar();
     });
 });
