@@ -181,10 +181,6 @@ def _registar_contexto(app):
             "ASSINATURA_LINHA_LARGURA_ENTREGA": LINHA_LARGURA_ENTREGA,
             "modulo_ativo": modulo_ativo,
             "modulo_info": MODULOS.get(modulo_ativo),
-            "wacom_sigcaptx": {
-                "port": app.config.get("WACOM_SIGCAPTX_PORT", 9000),
-                "licence": app.config.get("WACOM_SIGCAPTX_LICENCE", ""),
-            },
         }
 
 

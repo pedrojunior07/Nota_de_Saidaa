@@ -1472,7 +1472,8 @@ a.stat-card-link.is-active { border-color: var(--primary); box-shadow: inset 0 0
     align-items: center;
     gap: 16px;
 }
-.sig-upload-btn {
+.sig-upload-btn,
+.sig-draw-btn {
     width: 88px;
     height: 88px;
     border: 1px dashed var(--secondary);
@@ -1490,13 +1491,16 @@ a.stat-card-link.is-active { border-color: var(--primary); box-shadow: inset 0 0
     text-transform: uppercase;
     line-height: 1.2;
 }
-.sig-upload-btn i { font-size: 28px; line-height: 1; }
-.sig-upload-btn:hover {
+.sig-upload-btn i,
+.sig-draw-btn i { font-size: 28px; line-height: 1; }
+.sig-upload-btn:hover,
+.sig-draw-btn:hover {
     background: var(--primary);
     border-color: var(--primary);
     color: #fff;
 }
-.sig-slot.has-signature .sig-upload-btn { display: none; }
+.sig-slot.has-signature .sig-upload-btn,
+.sig-slot.has-signature .sig-draw-btn { display: none; }
 .sig-slot:not(.has-signature) .sig-card:empty { display: none; }
 .sig-card {
     position: relative;
@@ -1869,21 +1873,6 @@ body.sig-capture-open { overflow: hidden; }
     color: var(--muted);
     cursor: pointer;
 }
-.sig-capture-pad-estado {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    background: var(--bg);
-    color: var(--muted);
-}
-.sig-capture-pad-estado.is-ok { background: var(--positive-bg); color: var(--positive); }
-.sig-capture-pad-estado.is-warn { background: var(--warning-bg); color: var(--text); }
-.sig-capture-pad-estado[hidden] { display: none; }
-.sig-capture-pad-estado button { margin-left: auto; }
 .sig-capture-canvas-wrap {
     position: relative;
     border: 1px solid var(--line);
@@ -1912,12 +1901,6 @@ body.sig-capture-open { overflow: hidden; }
     flex-wrap: wrap;
     gap: 8px;
     margin-top: 12px;
-}
-.sig-capture-actions #sigCapturaPad {
-    margin-right: auto;
-}
-.sig-capture-actions #sigCapturaPad[hidden] {
-    display: none;
 }
 
 @media (max-width: 640px) {

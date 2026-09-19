@@ -35,39 +35,6 @@ class Config:
     PDF_FOLDER = os.path.join(basedir, "instance", "pdfs")
     SIGNATURE_FOLDER = os.path.join(basedir, "instance", "signatures")
 
-    # Exigir uma signature pad ligada (detetada por WebHID) para recolher a
-    # assinatura do destinatário/segurança. Em desenvolvimento fica desligado
-    # para permitir assinar com rato/touch sem hardware.
-    SIGNATURE_PAD_REQUIRED = os.environ.get("SIGNATURE_PAD_REQUIRED", "0") == "1"
-
-    # ------------------------------------------------------------------
-    # Signature pad Wacom STU (via serviço local "STU-SigCaptX", instalado
-    # no PC onde se recolhe a assinatura). O browser liga-se por HTTPS a
-    # localhost:<porta> — ver app/static/js/wacom_sigpad.js e o guia em
-    # docs/WACOM_STU_SETUP.md para o passo a passo completo de instalação.
-    #
-    #   WACOM_SIGCAPTX_PORT    -> porta do serviço STU-SigCaptX. A Wacom usa
-    #                             9000 por omissão (registo do Windows,
-    #                             chave ServicePort) — só mude se o
-    #                             instalador ficou configurado com outra.
-    #   WACOM_SIGCAPTX_LICENCE -> chave de licença. A Wacom disponibiliza
-    #                             uma licença "Lite" gratuita, válida para
-    #                             desenvolvimento e produção (só não cobre
-    #                             encriptação de assinatura nem formatação
-    #                             ISO — nada disto é usado aqui), por isso
-    #                             já vem pré-configurada como valor por
-    #                             omissão. Pode substituir por uma licença
-    #                             paga própria via variável de ambiente.
-    #
-    # Sem o serviço instalado (ou sem o pad ligado) a app continua a
-    # funcionar normalmente: assina-se no <canvas> com rato/touch/caneta.
-    # ------------------------------------------------------------------
-    WACOM_SIGCAPTX_PORT = int(os.environ.get("WACOM_SIGCAPTX_PORT", "9000"))
-    WACOM_SIGCAPTX_LICENCE_LITE = (
-        "eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI3YmM5Y2IxYWIxMGE0NmUxODI2N2E5MTJkYTA2ZTI3NiIsImV4cCI6MjE0NzQ4MzY0NywiaWF0IjoxNTYwOTUwMjcyLCJyaWdodHMiOlsiU0lHX1NES19DT1JFIiwiU0lHQ0FQVFhfQUNDRVNTIl0sImRldmljZXMiOlsiV0FDT01fQU5ZIl0sInR5cGUiOiJwcm9kIiwibGljX25hbWUiOiJTaWduYXR1cmUgU0RLIiwid2Fjb21faWQiOiI3YmM5Y2IxYWIxMGE0NmUxODI2N2E5MTJkYTA2ZTI3NiIsImxpY191aWQiOiJiODUyM2ViYi0xOGI3LTQ3OGEtYTlkZS04NDlmZTIyNmIwMDIiLCJhcHBzX3dpbmRvd3MiOltdLCJhcHBzX2lvcyI6W10sImFwcHNfYW5kcm9pZCI6W10sIm1hY2hpbmVfaWRzIjpbXX0.ONy3iYQ7lC6rQhou7rz4iJT_OJ20087gWz7GtCgYX3uNtKjmnEaNuP3QkjgxOK_vgOrTdwzD-nm-ysiTDs2GcPlOdUPErSp_bcX8kFBZVmGLyJtmeInAW6HuSp2-57ngoGFivTH_l1kkQ1KMvzDKHJbRglsPpd4nVHhx9WkvqczXyogldygvl0LRidyPOsS5H2GYmaPiyIp9In6meqeNQ1n9zkxSHo7B11mp_WXJXl0k1pek7py8XYCedCNW5qnLi4UCNlfTd6Mk9qz31arsiWsesPeR9PN121LBJtiPi023yQU8mgb9piw_a-ccciviJuNsEuRDN3sGnqONG3dMSA"
-    )
-    WACOM_SIGCAPTX_LICENCE = os.environ.get("WACOM_SIGCAPTX_LICENCE") or WACOM_SIGCAPTX_LICENCE_LITE
-
     APP_NAME = "Nota de Saída"
     APP_SHORT_NAME = "NDS"
 
@@ -107,7 +74,6 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     AUTH_MODE = os.environ.get("AUTH_MODE", "ldap")
-    SIGNATURE_PAD_REQUIRED = os.environ.get("SIGNATURE_PAD_REQUIRED", "1") == "1"
 
 
 config_by_name = {

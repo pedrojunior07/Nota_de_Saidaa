@@ -67,6 +67,10 @@
                 <p class="text-muted mb-3">Ao aprovar uma nota, posicione a assinatura no espaço «Autorizado Por».</p>
                 <div class="sig-slot {% if sig_url %}has-signature{% endif %} mb-3" id="sigSlot">
                     <input type="file" id="inputAssinatura" accept="image/png" hidden>
+                    <button type="button" class="sig-draw-btn" id="btnDesenharAssinatura" title="Desenhar assinatura" aria-label="Desenhar assinatura">
+                        <i class="bi bi-pencil"></i>
+                        <span>Desenhar</span>
+                    </button>
                     <button type="button" class="sig-upload-btn" id="btnUploadAssinatura" title="Carregar assinatura PNG" aria-label="Carregar assinatura PNG">
                         <i class="bi bi-cloud-arrow-up"></i>
                         <span>Carregar PNG</span>
@@ -101,7 +105,6 @@
         {% set _seguranca = url_assinatura(nota.assinatura_seguranca_path) %}
         <div class="panel mb-3 mt-3" id="assinaturasEntrega"
              data-nota="{{ nota.id }}"
-             data-pad-obrigatoria="{{ 1 if pad_obrigatoria else 0 }}"
              data-url-base="{{ url_for(request.blueprint ~ '.detalhe', nota_id=nota.id) }}"
              data-upload-url="{{ url_for(request.blueprint ~ '.upload_minha_assinatura') }}">
             <div class="panel-head"><h2>Assinaturas da entrega</h2></div>
@@ -112,9 +115,9 @@
                 para concluir a nota.
                 {% if not _seguranca %}A da <strong>Segurança</strong> continua opcional.{% endif %}
             </p>
-            {% set linhas = [('recebido', 'Recebido', nota.funcionario, _recebido, true)] %}
+            {% set linhas = [('recebido', 'Recebido', nota.funcionario, _recebido)] %}
             {% if not _seguranca %}
-            {% set linhas = linhas + [('seguranca', 'Segurança (opcional)', '', _seguranca, true)] %}
+            {% set linhas = linhas + [('seguranca', 'Segurança (opcional)', '', _seguranca)] %}
             {% endif %}
             {% else %}
             <p class="text-muted">
@@ -123,18 +126,18 @@
                 assina por último, depois da aprovação. A da <strong>Segurança</strong> é opcional.
             </p>
             {% set linhas = [
-                ('entregue', 'Entregue Por', current_user.nome, _entregue, false),
-                ('seguranca', 'Segurança (opcional)', '', _seguranca, true),
+                ('entregue', 'Entregue Por', current_user.nome, _entregue),
+                ('seguranca', 'Segurança (opcional)', '', _seguranca),
             ] %}
             {% endif %}
             <ul class="sig-collect-list">
-                {% for papel, rotulo, quem, url, usa_pad in linhas %}
+                {% for papel, rotulo, quem, url in linhas %}
                 {% set prefixo_assinatura = 'assinatura_' ~ papel %}
                 {% set pos_x = nota|attr(prefixo_assinatura ~ '_x') %}
                 {% set pos_y = nota|attr(prefixo_assinatura ~ '_y') %}
                 {% set pos_w = nota|attr(prefixo_assinatura ~ '_w') %}
                 {% set pos_h = nota|attr(prefixo_assinatura ~ '_h') %}
-                <li class="sig-collect-row" data-papel="{{ papel }}" data-usa-pad="{{ 1 if usa_pad else 0 }}"
+                <li class="sig-collect-row" data-papel="{{ papel }}"
                     data-pos-x="{{ pos_x if pos_x is not none else '' }}"
                     data-pos-y="{{ pos_y if pos_y is not none else '' }}"
                     data-pos-w="{{ pos_w if pos_w is not none else '' }}"
@@ -163,6 +166,10 @@
                             <i class="bi bi-arrows-move" aria-hidden="true"></i>
                         </button>
                         {% elif papel == 'entregue' and not current_user.assinatura_path %}
+                        <button type="button" class="sig-icon-btn sig-draw-reutilizavel"
+                                title="Desenhar assinatura reutilizável" aria-label="Desenhar assinatura reutilizável">
+                            <i class="bi bi-pencil" aria-hidden="true"></i>
+                        </button>
                         <button type="button" class="sig-icon-btn sig-upload-reutilizavel"
                                 title="Carregar PNG reutilizável" aria-label="Carregar PNG reutilizável">
                             <i class="bi bi-upload" aria-hidden="true"></i>
@@ -213,7 +220,9 @@
 {% if nota.pode_aprovar(current_user) %}
 {{ sig_preview('Arraste a assinatura para o espaço «Autorizado Por». Use os cantos para redimensionar.', 'Posicione e redimensione o PNG sobre «Autorizado Por» antes de concluir.') }}
 {% endif %}
-{% if (_recolher_entrega or _recolher_recebido) and nota.pode_gerir_assinaturas(current_user) %}
+{% if ((_recolher_entrega or _recolher_recebido) and nota.pode_gerir_assinaturas(current_user)) or nota.pode_aprovar(current_user) %}
 {{ sig_captura() }}
+{% endif %}
+{% if (_recolher_entrega or _recolher_recebido) and nota.pode_gerir_assinaturas(current_user) %}
 {{ sig_recebido_preview('Arraste a assinatura para o espaço «Recebido». Use os cantos para redimensionar.', 'Confirme a posição da assinatura «Recebido» antes de guardar.') }}
 {% endif %}

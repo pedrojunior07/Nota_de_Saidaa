@@ -27,7 +27,7 @@ from app.models.nota import NotaSaida
 from app.services import campos_dinamicos_service, directory_service, nota_service
 from app.utils.constants import ESTADOS_LABEL, TIPOS_ITEM, TIPOS_ITEM_COM_SAP, Perfil
 from app.utils.decorators import perfis_requeridos
-from app.utils.assinatura import guardar_png, ler_posicao, nome_ficheiro, url_assinatura
+from app.utils.assinatura import guardar_dataurl_png, guardar_png, ler_posicao, nome_ficheiro, url_assinatura
 
 bp = Blueprint("notas", __name__, url_prefix="/notas")
 
@@ -321,7 +321,6 @@ def detalhe(nota_id):
         nota=nota,
         historico=historico,
         form_decisao=form_decisao,
-        pad_obrigatoria=current_app.config.get("SIGNATURE_PAD_REQUIRED", False),
         campos_valores=campos_dinamicos_service.valores_para_exibir("saida", nota.id),
     )
 
@@ -456,20 +455,32 @@ def servir_assinatura(filename):
 @login_required
 @perfis_requeridos(Perfil.TECNICO.value, Perfil.APROVADOR.value, Perfil.TECNICO_ADMIN.value)
 def upload_minha_assinatura():
-    """Grava o PNG no perfil do técnico para reutilizar nas próximas notas."""
-    if "signature" not in request.files:
-        return jsonify({"error": "Ficheiro não enviado."}), 400
+    """Grava o PNG no perfil do utilizador para reutilizar nas próximas notas.
+
+    Aceita duas origens, ambas guardadas como PNG:
+      - Ficheiro carregado (multipart/form-data, campo "signature").
+      - Assinatura desenhada no canvas (JSON, campo "imagem" com um
+        data URL "data:image/png;base64,...").
+    """
     if current_user.assinatura_path:
         return jsonify({"error": "Já existe uma assinatura neste perfil. Elimine-a para carregar outra."}), 409
-    fname, erro = guardar_png(
-        request.files["signature"],
-        nome_fixo=f"sig_user_{current_user.id}.png",
-    )
+
+    nome_fixo = f"sig_user_{current_user.id}.png"
+    if "signature" in request.files:
+        fname, erro = guardar_png(request.files["signature"], nome_fixo=nome_fixo)
+        nota_id = request.form.get("nota_id", type=int)
+    else:
+        dados = request.get_json(silent=True) or {}
+        fname, erro = guardar_dataurl_png(dados.get("imagem"), nome_fixo)
+        nota_id = dados.get("nota_id")
+        try:
+            nota_id = int(nota_id) if nota_id else None
+        except (TypeError, ValueError):
+            nota_id = None
     if erro:
         return jsonify({"error": erro}), 400
     current_user.assinatura_path = fname
     current_user.assinatura_reutilizavel = True
-    nota_id = request.form.get("nota_id", type=int)
     if nota_id:
         nota = db.session.get(NotaSaida, nota_id)
         if nota:

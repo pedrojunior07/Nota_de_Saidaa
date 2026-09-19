@@ -1,23 +1,18 @@
-/* Recolha das assinaturas da entrega (Entregue Por / Recebido / Segurança).
+/* Recolha das assinaturas da entrega (Entregue Por / Recebido / Segurança)
+ * e da assinatura pessoal reutilizável do técnico ("Entregue Por").
  *
- * O campo de assinatura fica à espera de UMA de duas vias:
- *   1. Desenho no <canvas> com pointer events — rato, ecrã tátil e caneta de
- *      tablet Windows (o #sigCanvas tem touch-action:none).
- *   2. Signature pad Wacom STU — botão «Assinar no pad Wacom», que usa o
- *      adaptador window.WacomSigPad (vendor/sigcaptx + wacom_sigpad.js) e
- *      devolve a assinatura como data-URL PNG, igual a canvas.toDataURL().
- *
- * Com data-pad-obrigatoria=1 (SIGNATURE_PAD_REQUIRED) só a via do pad Wacom
- * grava; a via do <canvas> fica bloqueada. Com =0 (dev) qualquer via serve.
+ * O desenho da assinatura em si (canvas, ponto/traço, guardar/limpar) é
+ * gerido pelo módulo partilhado signature_canvas.js — este ficheiro só
+ * decide o que fazer com o PNG resultante: posicionar sobre o documento
+ * (fluxo normal por nota) ou enviar diretamente para o perfil do
+ * utilizador (assinatura reutilizável).
  */
 document.addEventListener("DOMContentLoaded", () => {
     const painel = document.getElementById("assinaturasEntrega");
-    const modal = document.getElementById("sigCaptura");
-    if (!painel || !modal) return;
+    if (!painel) return;
 
     const NOTA_ID = painel.dataset.nota;
     const URL_BASE = painel.dataset.urlBase.replace(/\/$/, "");
-    const PAD_OBRIGATORIA = painel.dataset.padObrigatoria === "1";
     // Mapa das áreas de assinatura (signature_zones.js). Cada assinatura só
     // pode ser posicionada dentro da sua própria célula do documento.
     const Zonas = (window.SignatureZones && window.SignatureZones.forTipo)
@@ -28,27 +23,6 @@ document.addEventListener("DOMContentLoaded", () => {
         painel.querySelector('input[name="csrf_token"]')?.value ||
         "";
 
-    // Configuração do pad Wacom (porta do serviço SigCaptX + licença), vinda do
-    // template via <script id="wacomSigCaptxMeta">.
-    const wacomMeta = (() => {
-        try {
-            return JSON.parse(document.getElementById("wacomSigCaptxMeta")?.textContent || "{}");
-        } catch (_e) {
-            return {};
-        }
-    })();
-    window.WacomSigPad?.configure(wacomMeta);
-
-    const canvas = document.getElementById("sigCanvas");
-    const ctx = canvas.getContext("2d");
-    const btnGuardar = document.getElementById("sigCapturaGuardar");
-    const btnLimpar = document.getElementById("sigCapturaLimpar");
-    const btnFechar = document.getElementById("sigCapturaFechar");
-    const titulo = document.getElementById("sigCapturaTitulo");
-    const ajuda = document.getElementById("sigCapturaAjuda");
-    const padTexto = document.getElementById("sigPadTexto");
-    const padEstado = document.getElementById("sigPadEstado");
-    const btnPad = document.getElementById("sigCapturaPad");
     const btnSubmeter = document.getElementById("btnSubmeterNota");
     const submeterHint = document.getElementById("submeterHint");
     const posicionador = document.getElementById("sigRecebidoPreview");
@@ -56,211 +30,34 @@ document.addEventListener("DOMContentLoaded", () => {
     const posicionadorVoltar = document.getElementById("sigRecebidoVoltar");
     const posicionadorConfirmar = document.getElementById("sigRecebidoConfirmar");
 
-    let papelAtual = null;
-    let temTraco = false;
-    let padOk = false;
     let imagemPendente = null;
     let posicaoPendente = null;
     let papelPosicao = null;
     let urlPendente = null;
 
-    // ---- canvas ----------------------------------------------------------
-    function prepararCanvas() {
-        const escala = window.devicePixelRatio || 1;
-        const largura = canvas.clientWidth || 640;
-        const altura = canvas.clientHeight || 240;
-        canvas.width = largura * escala;
-        canvas.height = altura * escala;
-        ctx.scale(escala, escala);
-        ctx.lineWidth = 2.2;
-        ctx.lineCap = "round";
-        ctx.lineJoin = "round";
-        ctx.strokeStyle = "#0b1f33";
-        limparCanvas();
-    }
-
-    function limparCanvas() {
-        ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.restore();
-        temTraco = false;
-        atualizarGuardar();
-    }
-
-    let aDesenhar = false;
-    let ultimo = null;
-
-    const pos = (ev) => {
-        const r = canvas.getBoundingClientRect();
-        return { x: ev.clientX - r.left, y: ev.clientY - r.top };
-    };
-
-    canvas.addEventListener("pointerdown", (ev) => {
-        if (btnGuardar.dataset.bloqueado === "1") return;
-        aDesenhar = true;
-        ultimo = pos(ev);
-        canvas.setPointerCapture(ev.pointerId);
-        // Desenha logo um ponto no local do toque/clique. Sem isto, um
-        // clique sem arrastar (assinatura em forma de ponto/rubrica curta)
-        // não desenhava nada e o botão "Guardar" ficava desativado, porque
-        // só o pointermove marcava temTraco = true.
-        ctx.beginPath();
-        ctx.arc(ultimo.x, ultimo.y, ctx.lineWidth / 2, 0, Math.PI * 2);
-        ctx.fillStyle = ctx.strokeStyle;
-        ctx.fill();
-        temTraco = true;
-        atualizarGuardar();
-        ev.preventDefault();
-    });
-    canvas.addEventListener("pointermove", (ev) => {
-        if (!aDesenhar) return;
-        // Eventos coalescidos = traço mais suave com caneta/touch de alta taxa.
-        const eventos = ev.getCoalescedEvents ? ev.getCoalescedEvents() : [ev];
-        for (const e of eventos.length ? eventos : [ev]) {
-            const p = pos(e);
-            if (e.pointerType === "pen" && e.pressure > 0) {
-                ctx.lineWidth = 1 + e.pressure * 2.4;
-            }
-            ctx.beginPath();
-            ctx.moveTo(ultimo.x, ultimo.y);
-            ctx.lineTo(p.x, p.y);
-            ctx.stroke();
-            ultimo = p;
-        }
-        temTraco = true;
-        atualizarGuardar();
-    });
-    const pararDesenho = () => { aDesenhar = false; };
-    canvas.addEventListener("pointerup", pararDesenho);
-    canvas.addEventListener("pointercancel", pararDesenho);
-    canvas.addEventListener("pointerleave", pararDesenho);
-
-    function atualizarGuardar() {
-        const bloqueado = PAD_OBRIGATORIA && !padOk;
-        btnGuardar.dataset.bloqueado = bloqueado ? "1" : "0";
-        btnGuardar.disabled = bloqueado || !temTraco;
-    }
-
-    // ---- pad Wacom STU (SigCaptX) --------------------------------------
-    const MENSAGENS_PAD = {
-        idle: ["is-warn", "A verificar pad Wacom…"],
-        connecting: ["is-warn", "A ligar ao pad Wacom…"],
-        ready: ["is-ok", "Pad Wacom pronto. Assine no pad ou no retângulo acima."],
-        "no-service": ["is-warn", "Serviço Wacom indisponível — assine no retângulo (caneta/rato/touch)."],
-        "no-licence": ["is-warn", "Licença Wacom em falta — assine no retângulo (caneta/rato/touch)."],
-        error: ["is-warn", "Não foi possível ligar ao pad Wacom — assine no retângulo."],
-    };
-
-    function aplicarEstadoPad(estado) {
-        if (!padEstado) return;
-        let [cls, texto] = MENSAGENS_PAD[estado] || MENSAGENS_PAD.idle;
-        if (PAD_OBRIGATORIA && estado !== "ready") {
-            texto = "É obrigatório assinar no pad Wacom, mas o serviço não está disponível.";
-        }
-        padEstado.className = `sig-capture-pad-estado ${cls}`;
-        if (padTexto) padTexto.textContent = texto;
-        if (btnPad) btnPad.disabled = estado !== "ready";
-    }
-
-    function iniciarPad() {
-        if (!window.WacomSigPad) {
-            aplicarEstadoPad("no-service");
-            return;
-        }
-        // Se uma tentativa anterior falhou (serviço/pad ligados entretanto),
-        // volta a tentar; se já está pronto, resolve do cache instantaneamente.
-        const anterior = window.WacomSigPad.getState();
-        const forcar = ["no-service", "no-licence", "error"].includes(anterior);
-        aplicarEstadoPad("connecting");
-        window.WacomSigPad.init(forcar)
-            .then(aplicarEstadoPad)
-            .catch(() => aplicarEstadoPad("error"));
-    }
-
-    async function capturarNoPad() {
-        if (!papelAtual || !window.WacomSigPad?.isReady()) return;
-        const rotulo =
-            painel.querySelector(`.sig-collect-row[data-papel="${papelAtual}"] .sig-collect-info strong`)
-                ?.textContent || "";
-        const textoAnterior = padTexto?.textContent;
-        btnPad.disabled = true;
-        if (padTexto) padTexto.textContent = "A aguardar a assinatura no pad Wacom…";
-        try {
-            const imagem = await window.WacomSigPad.capture({
-                who: rotulo,
-                why: `Nota de ${painel.dataset.tipo || "saída"} — ${rotulo}`,
-            });
-            const papel = papelAtual;
-            if (["recebido", "seguranca", "entregue"].includes(papel)) {
-                fechar();
-                abrirPosicionador(imagem, papel);
-                return;
-            }
-            const { ok, json } = await pedir(`${URL_BASE}/assinatura/${papel}`, { imagem });
-            if (!ok) {
-                window.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
-                return;
-            }
-            atualizarLinha(papel, json.url);
-            window.showToast?.("Assinatura guardada.", "success");
-            fechar();
-        } catch (motivo) {
-            const msgs = {
-                cancel: "Captura cancelada no pad.",
-                "pad-error": "Erro no pad Wacom. Verifique a ligação do dispositivo.",
-                "not-licensed": "Licença Wacom inválida ou em falta para a captura.",
-                "render-error": "Não foi possível gerar a imagem da assinatura.",
-            };
-            window.showToast?.(
-                msgs[motivo] || "Falha na captura pelo pad Wacom.",
-                motivo === "cancel" ? "info" : "danger",
-            );
-            if (padTexto && textoAnterior) padTexto.textContent = textoAnterior;
-        } finally {
-            if (btnPad) btnPad.disabled = !window.WacomSigPad?.isReady();
-        }
-    }
-
-    btnPad?.addEventListener("click", capturarNoPad);
-
-    // ---- abrir / fechar modal ------------------------------------------
-    function abrir(papel, rotulo) {
-        papelAtual = papel;
-        titulo.textContent = `Recolher assinatura — ${rotulo}`;
-        const usaPad = painel
-            .querySelector(`.sig-collect-row[data-papel="${papel}"]`)
-            ?.dataset.usaPad === "1";
-        if (padEstado) padEstado.hidden = !usaPad;
-        if (btnPad) {
-            btnPad.hidden = !usaPad;
-            btnPad.disabled = true;
-        }
-        ajuda.textContent = usaPad
-            ? "Peça à pessoa para assinar no pad Wacom ou no retângulo acima."
-            : "Assine no retângulo acima.";
-        modal.showModal();
-        document.body.classList.add("sig-capture-open");
-        requestAnimationFrame(() => {
-            prepararCanvas();
-            if (usaPad) {
-                // Com pad obrigatória, a via do <canvas> não grava — só o pad.
-                padOk = !PAD_OBRIGATORIA;
-                atualizarGuardar();
-                iniciarPad();
-            } else {
-                padOk = true;
-                atualizarGuardar();
-            }
+    // ---- abrir o modal de desenho para um papel desta nota -------------
+    function abrirRecolher(papel, rotulo) {
+        window.SignatureCanvasModal?.abrir({
+            titulo: `Recolher assinatura — ${rotulo}`,
+            ajuda: "Assine no retângulo acima.",
+            aoGuardar: (imagem) => {
+                if (["recebido", "seguranca", "entregue"].includes(papel)) {
+                    abrirPosicionador(imagem, papel);
+                    return;
+                }
+                pedir(`${URL_BASE}/assinatura/${papel}`, { imagem }).then(({ ok, json }) => {
+                    if (!ok) {
+                        window.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
+                        return;
+                    }
+                    atualizarLinha(papel, json.url);
+                    window.showToast?.("Assinatura guardada.", "success");
+                });
+            },
         });
     }
 
-    function fechar() {
-        modal.close();
-        document.body.classList.remove("sig-capture-open");
-        papelAtual = null;
-    }
-
+    // ---- posicionador (arrastar/redimensionar sobre o documento) -------
     function fecharPosicionador() {
         posicionador.hidden = true;
         document.body.classList.remove("sig-preview-open");
@@ -400,12 +197,6 @@ document.addEventListener("DOMContentLoaded", () => {
         requestAnimationFrame(montarPosicionador);
     }
 
-    btnFechar?.addEventListener("click", fechar);
-    btnLimpar?.addEventListener("click", limparCanvas);
-    modal.addEventListener("click", (ev) => {
-        if (ev.target === modal) fechar();
-    });
-
     // ---- guardar / remover -------------------------------------------
     async function pedir(url, corpo) {
         const res = await fetch(url, {
@@ -417,30 +208,6 @@ document.addEventListener("DOMContentLoaded", () => {
         try { json = await res.json(); } catch (_e) { /* vazio */ }
         return { ok: res.ok && json.ok, json };
     }
-
-    btnGuardar?.addEventListener("click", async () => {
-        if (!papelAtual || btnGuardar.disabled) return;
-        btnGuardar.disabled = true;
-        const imagem = canvas.toDataURL("image/png");
-        // Recolhida a assinatura, o painel de recolha fecha e abre-se o
-        // posicionador sobre o documento completo.
-        if (["recebido", "seguranca", "entregue"].includes(papelAtual)) {
-            btnGuardar.disabled = false;
-            const papel = papelAtual;
-            fechar();
-            abrirPosicionador(imagem, papel);
-            return;
-        }
-        const { ok, json } = await pedir(`${URL_BASE}/assinatura/${papelAtual}`, { imagem });
-        if (!ok) {
-            window.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
-            btnGuardar.disabled = false;
-            return;
-        }
-        atualizarLinha(papelAtual, json.url);
-        window.showToast?.("Assinatura guardada.", "success");
-        fechar();
-    });
 
     posicionadorVoltar?.addEventListener("click", fecharPosicionador);
     posicionadorConfirmar?.addEventListener("click", async () => {
@@ -469,13 +236,28 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         window.showToast?.("Assinatura guardada e posicionada.", "success");
         fecharPosicionador();
-        fechar();
         // Na Nota de Entrega, a assinatura do Segurança conclui a nota.
         if (json.estado === "concluida") {
             setTimeout(() => window.location.reload(), 700);
             return;
         }
     });
+
+    // ---- assinatura pessoal reutilizável ("Entregue Por") ---------------
+    function aplicarAssinaturaReutilizavelGuardada(url) {
+        atualizarLinha("entregue", url);
+        const row = painel.querySelector('.sig-collect-row[data-papel="entregue"]');
+        row?.querySelector(".sig-upload-reutilizavel")?.remove();
+        row?.querySelector(".sig-draw-reutilizavel")?.remove();
+        const btnEditar = document.createElement("button");
+        btnEditar.type = "button";
+        btnEditar.className = "sig-icon-btn sig-collect-edit";
+        btnEditar.title = "Editar posição da assinatura";
+        btnEditar.setAttribute("aria-label", "Editar posição da assinatura");
+        btnEditar.innerHTML = '<i class="bi bi-arrows-move" aria-hidden="true"></i>';
+        btnEditar.addEventListener("click", () => editarPosicao("entregue", url));
+        row?.querySelector(".sig-collect-remove")?.before(btnEditar);
+    }
 
     async function carregarAssinaturaReutilizavel() {
         const input = document.createElement("input");
@@ -498,18 +280,24 @@ document.addEventListener("DOMContentLoaded", () => {
                 window.showToast?.(json.error || "Não foi possível carregar a assinatura.", "danger");
                 return;
             }
-            atualizarLinha("entregue", json.url);
-            const row = painel.querySelector('.sig-collect-row[data-papel="entregue"]');
-            row?.querySelector(".sig-upload-reutilizavel")?.remove();
-            const btnEditar = document.createElement("button");
-            btnEditar.type = "button";
-            btnEditar.className = "sig-icon-btn sig-collect-edit";
-            btnEditar.title = "Editar posição da assinatura";
-            btnEditar.setAttribute("aria-label", "Editar posição da assinatura");
-            btnEditar.innerHTML = '<i class="bi bi-arrows-move" aria-hidden="true"></i>';
-            btnEditar.addEventListener("click", () => editarPosicao("entregue", json.url));
-            row?.querySelector(".sig-collect-remove")?.before(btnEditar);
+            aplicarAssinaturaReutilizavelGuardada(json.url);
             window.showToast?.("Assinatura reutilizável guardada.", "success");
+        });
+    }
+
+    function desenharAssinaturaReutilizavel() {
+        window.SignatureCanvasModal?.abrir({
+            titulo: "Desenhar assinatura",
+            ajuda: "Assine no retângulo acima. Fica guardada no seu perfil para reutilizar noutras notas.",
+            aoGuardar: async (imagem) => {
+                const { ok, json } = await pedir(painel.dataset.uploadUrl, { imagem, nota_id: NOTA_ID });
+                if (!ok) {
+                    window.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
+                    return;
+                }
+                aplicarAssinaturaReutilizavelGuardada(json.url);
+                window.showToast?.("Assinatura reutilizável guardada.", "success");
+            },
         });
     }
 
@@ -568,18 +356,15 @@ document.addEventListener("DOMContentLoaded", () => {
     painel.querySelectorAll(".sig-collect-row").forEach((row) => {
         const papel = row.dataset.papel;
         const rotulo = row.querySelector(".sig-collect-info strong")?.textContent || "";
-        row.querySelector(".sig-collect-btn")?.addEventListener("click", () => abrir(papel, rotulo));
+        row.querySelector(".sig-collect-btn")?.addEventListener("click", () => abrirRecolher(papel, rotulo));
         row.querySelector(".sig-collect-edit")?.addEventListener("click", () => {
             const url = row.querySelector(".sig-collect-preview img")?.src;
             if (url) editarPosicao(papel, url);
         });
         row.querySelector(".sig-upload-reutilizavel")?.addEventListener("click", carregarAssinaturaReutilizavel);
+        row.querySelector(".sig-draw-reutilizavel")?.addEventListener("click", desenharAssinaturaReutilizavel);
         row.querySelector(".sig-collect-remove")?.addEventListener("click", () => {
             if (confirm("Remover esta assinatura?")) remover(papel);
         });
-    });
-
-    window.addEventListener("keydown", (ev) => {
-        if (ev.key === "Escape" && modal.open) fechar();
     });
 });

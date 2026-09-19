@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const meta = JSON.parse(metaEl.textContent);
     const inputFile = document.getElementById("inputAssinatura");
     const btnUpload = document.getElementById("btnUploadAssinatura");
+    const btnDesenhar = document.getElementById("btnDesenharAssinatura");
     const slot = document.getElementById("sigSlot");
     const preview = document.getElementById("sigPreview");
     const stage = document.getElementById("sigStage");
@@ -129,6 +130,31 @@ document.addEventListener("DOMContentLoaded", () => {
     btnUpload?.addEventListener("click", () => {
         if (assinaturaUrl) return;
         inputFile?.click();
+    });
+    btnDesenhar?.addEventListener("click", () => {
+        if (assinaturaUrl) return;
+        window.SignatureCanvasModal?.abrir({
+            titulo: "Desenhar assinatura",
+            ajuda: "Assine no retângulo acima. Fica guardada no seu perfil para reutilizar noutras notas.",
+            aoGuardar: async (imagem) => {
+                try {
+                    const res = await fetch(meta.uploadUrl, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
+                        body: JSON.stringify({ imagem, nota_id: meta.notaId }),
+                    });
+                    const json = await res.json().catch(() => ({}));
+                    if (!res.ok || !json.ok) {
+                        window.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
+                        return;
+                    }
+                    atualizarSlot(`${json.url}?t=${Date.now()}`);
+                    window.showToast?.("Assinatura guardada.", "success");
+                } catch (_err) {
+                    window.showToast?.("Falha de rede ao guardar a assinatura.", "danger");
+                }
+            },
+        });
     });
     ligarApagar();
 

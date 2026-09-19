@@ -22,19 +22,12 @@
             <h3 id="sigCapturaTitulo">Recolher assinatura</h3>
             <button type="button" class="sig-capture-fechar" id="sigCapturaFechar" aria-label="Fechar">&times;</button>
         </div>
-        <div class="sig-capture-pad-estado" id="sigPadEstado" hidden>
-            <i class="bi bi-pen"></i>
-            <span id="sigPadTexto">A verificar pad Wacom…</span>
-        </div>
         <div class="sig-capture-canvas-wrap">
             <canvas id="sigCanvas" width="640" height="240"></canvas>
             <span class="sig-capture-baseline"></span>
         </div>
         <p class="text-muted small mb-2" id="sigCapturaAjuda">Assine no retângulo acima.</p>
         <div class="sig-capture-actions">
-            <button type="button" class="btn btn-outline-navy" id="sigCapturaPad" hidden disabled>
-                <i class="bi bi-pen" aria-hidden="true"></i> Assinar no pad Wacom
-            </button>
             <button type="button" class="btn btn-outline-secondary" id="sigCapturaLimpar">Limpar</button>
             <button type="button" class="btn btn-navy" id="sigCapturaGuardar" disabled>Guardar assinatura</button>
         </div>
