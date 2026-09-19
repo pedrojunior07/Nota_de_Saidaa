@@ -1,5 +1,6 @@
 """Fluxo da Nota de Entrega (modelo próprio, mesma lógica da Nota de Saída)."""
 
+import os
 from datetime import date, datetime
 
 from flask import (
@@ -20,7 +21,7 @@ from sqlalchemy import false, or_
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.forms.nota import DecisaoForm, NotaForm
+from app.forms.nota import CarregarNotaForm, DecisaoForm, NotaForm
 from app.models.configuracao import Configuracao
 from app.models.historico_entrega import HistoricoEntrega
 from app.models.nota_entrega import NotaEntrega
@@ -141,6 +142,7 @@ def listar():
         paginacao=paginacao,
         estados=ESTADOS_LABEL,
         stats=stats,
+        form_carregar=CarregarNotaForm(),
         filtros={
             "referencia": referencia,
             "colaborador": colaborador,
@@ -149,6 +151,33 @@ def listar():
             "data_fim": data_fim or "",
         },
     )
+
+
+@bp.route("/carregar", methods=["POST"])
+@login_required
+@perfis_requeridos(Perfil.TECNICO.value, Perfil.TECNICO_ADMIN.value)
+def carregar():
+    """Regista na base de dados uma Nota de Entrega já existente (PDF externo),
+    sem passar pelo formulário completo de criação."""
+    form = CarregarNotaForm()
+    if not form.validate_on_submit():
+        primeiro_erro = next(iter(form.errors.values()), [None])[0]
+        flash(primeiro_erro or "Não foi possível carregar a nota. Verifique os dados.", "danger")
+        return redirect(url_for("entrega.listar"))
+
+    ficheiro = request.files.get(form.ficheiro.name)
+    try:
+        nota = entrega_service.carregar_nota(form.data, ficheiro, current_user)
+    except ValueError as erro:
+        flash(str(erro), "warning")
+        return redirect(url_for("entrega.listar"))
+    except IntegrityError:
+        db.session.rollback()
+        flash("Já existe uma nota com este número de referência Remedy.", "danger")
+        return redirect(url_for("entrega.listar"))
+
+    flash("Nota carregada e adicionada à listagem.", "success")
+    return redirect(url_for("entrega.detalhe", nota_id=nota.id))
 
 
 @bp.route("/nova", methods=["GET", "POST"])
@@ -434,13 +463,21 @@ def pdf(nota_id):
     nota = _obter_ou_404(nota_id)
     if not _pode_ver(nota):
         abort(403)
-    if nota.estado != EstadoNota.CONCLUIDA.value:
-        flash("O PDF fica disponível quando a nota estiver concluída.", "warning")
-        return redirect(url_for("entrega.detalhe", nota_id=nota.id))
-    caminho = entrega_service.garantir_pdf(nota)
+    if nota.pdf_carregado:
+        # Nota registada a partir de um PDF externo: nunca regenerar, servir
+        # exatamente o ficheiro que foi carregado.
+        if not nota.pdf_path or not os.path.isfile(nota.pdf_path):
+            abort(404)
+        caminho = nota.pdf_path
+    else:
+        if nota.estado != EstadoNota.CONCLUIDA.value:
+            flash("O PDF fica disponível quando a nota estiver concluída.", "warning")
+            return redirect(url_for("entrega.detalhe", nota_id=nota.id))
+        caminho = entrega_service.garantir_pdf(nota)
+    inline = request.args.get("inline") == "1"
     return send_file(
         caminho,
-        as_attachment=True,
+        as_attachment=not inline,
         download_name=f"Nota_Entrega_{nota.numero_documento.replace('/', '-')}.pdf",
         mimetype="application/pdf",
     )

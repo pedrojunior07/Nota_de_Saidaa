@@ -96,6 +96,14 @@
     </form>
 </div>
 
+{% if current_user.is_tecnico() %}
+<div class="d-flex justify-content-end mb-3">
+    <button type="button" class="btn btn-outline-navy" data-bs-toggle="modal" data-bs-target="#modalCarregarNota">
+        <i class="bi bi-upload"></i> Carregar nota
+    </button>
+</div>
+{% endif %}
+
 <div class="panel">
     <div class="table-responsive">
         <table class="table table-corporate align-middle mb-0">
@@ -143,4 +151,88 @@
     </div>
     {{ render_paginacao_compacta(paginacao, "entrega.listar") }}
 </div>
+
+{% if current_user.is_tecnico() %}
+<div class="modal fade" id="modalCarregarNota" tabindex="-1" aria-labelledby="modalCarregarNotaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('entrega.carregar') }}" enctype="multipart/form-data">
+                {{ form_carregar.hidden_tag() }}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalCarregarNotaLabel">Carregar nota existente</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">
+                        Regista uma nota de entrega já existente (ex.: documento antigo em PDF) diretamente
+                        nesta listagem, sem passar pelo formulário completo de criação.
+                    </p>
+                    <div class="mb-3">
+                        {{ form_carregar.numero_referencia.label(class="form-label") }}
+                        {{ form_carregar.numero_referencia(class="form-control") }}
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-7">
+                            {{ form_carregar.funcionario.label(class="form-label") }}
+                            {{ form_carregar.funcionario(class="form-control") }}
+                        </div>
+                        <div class="col-md-5">
+                            {{ form_carregar.email_funcionario.label(class="form-label") }}
+                            {{ form_carregar.email_funcionario(class="form-control") }}
+                        </div>
+                    </div>
+                    <div class="row g-2 mt-0">
+                        <div class="col-md-4">
+                            {{ form_carregar.origem_local.label(class="form-label") }}
+                            {{ form_carregar.origem_local(class="form-control") }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form_carregar.data_emissao.label(class="form-label") }}
+                            {{ form_carregar.data_emissao(class="form-control") }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form_carregar.estado.label(class="form-label") }}
+                            {{ form_carregar.estado(class="form-select") }}
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        {{ form_carregar.ficheiro.label(class="form-label") }}
+                        <label class="file-drop" id="fileDropCarregarNota">
+                            {{ form_carregar.ficheiro(class="file-drop-input", accept="application/pdf", id="inputCarregarNotaFicheiro") }}
+                            <span class="file-drop-icon"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i></span>
+                            <span class="file-drop-texts">
+                                <strong class="file-drop-title">
+                                    <i class="bi bi-upload" aria-hidden="true"></i> Escolher ficheiro
+                                </strong>
+                                <span class="file-drop-hint" id="fileDropCarregarNotaHint">Nenhum ficheiro selecionado.</span>
+                                <span class="file-drop-note">Só PDF.</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    {{ form_carregar.carregar(class="btn btn-navy") }}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{% if current_user.is_tecnico() %}
+<script>
+(function () {
+    var input = document.getElementById("inputCarregarNotaFicheiro");
+    var hint = document.getElementById("fileDropCarregarNotaHint");
+    if (!input || !hint) return;
+    input.addEventListener("change", function () {
+        var ficheiro = input.files && input.files[0];
+        hint.textContent = ficheiro ? ficheiro.name : "Nenhum ficheiro selecionado.";
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}

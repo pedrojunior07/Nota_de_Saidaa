@@ -20,7 +20,7 @@ from app.models.nota_entrega import NotaEntrega
 from app.models.user import User
 from app.services.entrega_pdf import gerar_pdf_entrega
 from app.utils.assinatura_zonas import enquadrar as _enquadrar
-from app.utils.constants import EstadoNota, Perfil
+from app.utils.constants import ESTADOS_LABEL, EstadoNota, Perfil
 from app.utils.tempo import agora
 
 
@@ -100,6 +100,43 @@ def _aplicar_assinatura_entregue(nota, utilizador, posicao=None):
         pos = enquadrar("entregue", posicao)
         for eixo in ("x", "y", "w", "h"):
             setattr(nota, f"assinatura_entregue_{eixo}", pos[eixo])
+
+
+def carregar_nota(dados, ficheiro, utilizador):
+    """Regista uma Nota de Entrega já existente (documento externo, ex.: nota
+    antiga digitalizada) diretamente na listagem, sem o fluxo normal de
+    criação/itens/assinaturas. O PDF enviado é guardado tal como está e
+    nunca é substituído (ver `pdf_carregado` e a rota de download)."""
+    from app.utils.uploads import guardar_pdf_upload
+
+    caminho_pdf, erro = guardar_pdf_upload(ficheiro)
+    if erro:
+        raise ValueError(erro)
+
+    nota = NotaEntrega(
+        numero_referencia=dados["numero_referencia"].strip(),
+        data_emissao=dados["data_emissao"],
+        funcionario=dados["funcionario"].strip(),
+        email_funcionario=dados["email_funcionario"].strip().lower(),
+        departamento="N/A",
+        motivo="Nota carregada manualmente",
+        origem_local=(dados.get("origem_local") or "Sede IT").strip(),
+        local_emissao="Maputo",
+        estado=dados["estado"],
+        criado_por=utilizador.id,
+        pdf_path=caminho_pdf,
+        pdf_carregado=True,
+    )
+    if nota.estado == EstadoNota.CONCLUIDA.value:
+        nota.data_conclusao = agora()
+    db.session.add(nota)
+    db.session.flush()
+    rotulo_estado = ESTADOS_LABEL.get(nota.estado, nota.estado)
+    registrar(
+        nota, f"Carregou a nota a partir de um PDF externo. Estado inicial: {rotulo_estado}.", utilizador
+    )
+    db.session.commit()
+    return nota
 
 
 def criar_nota(dados, itens, utilizador, posicao_assinatura=None):

@@ -39,6 +39,7 @@ class NotaEntrega(db.Model):
     data_criacao = db.Column(db.DateTime, nullable=False, default=agora)
 
     pdf_path = db.Column(db.String(255), nullable=True)
+    pdf_carregado = db.Column(db.Boolean, nullable=False, default=False, server_default="0")
     comentario_decisao = db.Column(db.Text, nullable=True)
     origem_local = db.Column(db.String(120), nullable=False, default="Sede IT", server_default="Sede IT")
     local_emissao = db.Column(db.String(80), nullable=False, default="Maputo", server_default="Maputo")
