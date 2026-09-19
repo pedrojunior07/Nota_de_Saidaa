@@ -25,7 +25,7 @@ from app.forms.nota import CarregarNotaForm, DecisaoForm, NotaForm
 from app.models.configuracao import Configuracao
 from app.models.nota import NotaSaida
 from app.services import campos_dinamicos_service, directory_service, nota_service
-from app.utils.constants import ESTADOS_LABEL, TIPOS_ITEM, TIPOS_ITEM_COM_SAP, Perfil
+from app.utils.constants import ESTADOS_LABEL, TIPOS_ITEM, TIPOS_ITEM_COM_SAP, EstadoNota, Perfil
 from app.utils.decorators import perfis_requeridos
 from app.utils.assinatura import guardar_dataurl_png, guardar_png, ler_posicao, nome_ficheiro, url_assinatura
 
@@ -44,7 +44,9 @@ def _bloquear_admin():
 
 def _consulta_listagem():
     if current_user.perfil == Perfil.APROVADOR.value:
-        return NotaSaida.query
+        # O aprovador só decide/acompanha notas já submetidas — nunca vê
+        # rascunhos que o técnico ainda nem entregou para revisão.
+        return NotaSaida.query.filter(NotaSaida.estado != EstadoNota.RASCUNHO.value)
     if current_user.is_tecnico():
         return NotaSaida.query.filter(
             or_(
@@ -64,7 +66,7 @@ def _obter_ou_404(nota_id):
 
 def _pode_ver(nota):
     if current_user.is_aprovador():
-        return True
+        return nota.estado != EstadoNota.RASCUNHO.value
     if current_user.is_tecnico() and (
         nota.criado_por == current_user.id or nota.revisao_tecnico_id == current_user.id
     ):

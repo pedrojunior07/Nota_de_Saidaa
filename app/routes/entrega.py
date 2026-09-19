@@ -55,7 +55,9 @@ def _posicao(papel):
 
 def _consulta_listagem():
     if current_user.perfil == Perfil.APROVADOR.value:
-        return NotaEntrega.query
+        # O aprovador só decide/acompanha notas já submetidas — nunca vê
+        # rascunhos que o técnico ainda nem entregou para revisão.
+        return NotaEntrega.query.filter(NotaEntrega.estado != EstadoNota.RASCUNHO.value)
     if current_user.is_tecnico():
         return NotaEntrega.query.filter(
             or_(
@@ -75,7 +77,7 @@ def _obter_ou_404(nota_id):
 
 def _pode_ver(nota):
     if current_user.is_aprovador():
-        return True
+        return nota.estado != EstadoNota.RASCUNHO.value
     return current_user.is_tecnico() and (
         nota.criado_por == current_user.id or nota.revisao_tecnico_id == current_user.id
     )
