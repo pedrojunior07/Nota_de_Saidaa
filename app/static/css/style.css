@@ -1332,26 +1332,31 @@ a.stat-card-link.is-active { border-color: var(--primary); box-shadow: inset 0 0
 }
 .folha-assunto { text-align: center; font-size: 1.05rem; font-weight: 700; margin: 18px 0; }
 .folha-intro { text-align: center; font-weight: 700; margin-bottom: 22px; }
-.folha-materiais { margin-top: 28px; }
+.folha-materiais { margin-top: 28px; border-top: 1px solid #111; }
 .folha-cols {
     display: grid;
     grid-template-columns: 150px 1fr;
     font-weight: 700;
-    margin-bottom: 18px;
     font-size: .85rem;
+    border-bottom: 1px solid #111;
+    padding: 6px 0;
 }
-.folha-cols span { border-bottom: 1px solid #111; width: max-content; }
-.folha-cols span:last-child { justify-self: start; font-size: 1rem; }
+.folha-cols span:first-child { text-align: center; border-right: 1px solid #111; }
+.folha-cols span:last-child { padding-left: 22px; font-size: 1rem; }
 .folha-itens { list-style: none; padding: 0; margin: 0 0 34px; }
 .folha-itens li {
     display: grid;
     grid-template-columns: 150px 1fr;
-    font-weight: 700;
-    margin-bottom: 10px;
-    padding-bottom: 2px;
+    border-bottom: 1px solid #ccc;
+    padding: 8px 0;
 }
-.folha-itens li span:last-child { min-width: 0; }
-.folha-itens .folha-inc { font-weight: 400; border-bottom: none; }
+.folha-itens li span:first-child {
+    text-align: center;
+    font-weight: 700;
+    border-right: 1px solid #111;
+}
+.folha-itens .folha-item-desc { padding-left: 22px; }
+.folha-itens .folha-inc { font-weight: 400; }
 .folha-item-desc {
     display: flex;
     flex-direction: column;
@@ -1361,7 +1366,6 @@ a.stat-card-link.is-active { border-color: var(--primary); box-shadow: inset 0 0
 .folha-item-meta {
     font-weight: 400;
     font-size: .82em;
-    margin-left: 12px;
     color: var(--muted, #555);
 }
 .folha-nota-campo {
@@ -1393,9 +1397,9 @@ a.stat-card-link.is-active { border-color: var(--primary); box-shadow: inset 0 0
 .folha-corpo .folha-assunto { margin: 10px 0; font-size: 1rem; }
 .folha-corpo .folha-intro { margin-bottom: 12px; }
 .folha-corpo .folha-materiais { margin-top: 12px; }
-.folha-corpo .folha-cols { margin-bottom: 8px; }
+.folha-corpo .folha-cols { margin-bottom: 0; padding: 4px 0; }
 .folha-corpo .folha-itens { margin: 0 0 14px; }
-.folha-corpo .folha-itens li { margin-bottom: 5px; }
+.folha-corpo .folha-itens li { padding: 4px 0; }
 .folha-corpo .folha-nota-campo { margin: 0 0 8px; }
 .folha-corpo .folha-motivo { padding-bottom: 0; }
 
