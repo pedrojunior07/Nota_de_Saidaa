@@ -163,7 +163,7 @@ def gerar_pdf_entrega(nota, pasta_pdf):
     data = nota.data_emissao
     if data:
         c.setFont(fonte, 10)
-        c.drawString(MARGEM_ESQ, 44,
+        c.drawCentredString(LARGURA / 2, 44,
                      f"{nota.local_emissao or 'Maputo'}, aos {data.day} de {MESES[data.month - 1]} de {data.year}")
 
     _rodape(c, config, fonte)
@@ -211,14 +211,14 @@ def _assinaturas(c, nota, fonte, fonte_b):
         x1 = LARGURA * (campo["cx"] + meia) / 100.0
         c.setFont(fonte_b, 10)
         c.setFillColor(black)
-        c.drawString(x0, _pt_y(campo["rotulo_y"]), campo["rotulo"])
+        c.drawCentredString(cx, _pt_y(campo["rotulo_y"]), campo["rotulo"])
         c.setStrokeColor(black)
         c.setLineWidth(0.9)
         c.setDash()
         c.line(x0, _pt_y(campo["linha_y"]), x1, _pt_y(campo["linha_y"]))
         if nomes[papel]:
             c.setFont(fonte, 9)
-            c.drawString(x0, _pt_y(campo["nome_y"]), nomes[papel])
+            c.drawCentredString(cx, _pt_y(campo["nome_y"]), nomes[papel])
 
     # PNG das assinaturas recolhidas
     for papel in ("aprovador", "entregue", "recebido", "seguranca"):

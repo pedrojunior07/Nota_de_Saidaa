@@ -53,10 +53,10 @@
     <div class="folha-assinaturas folha-assinaturas--entrega">
         {% for papel, campo in ASSINATURA_CAMPOS_ENTREGA.items() %}
         {% set _esq = campo.cx - _lw / 2 %}
-        <span class="folha-campo-rotulo" style="left:{{ _esq }}%;width:{{ _lw }}%;top:{{ campo.rotulo_y }}%;text-align:left">{{ campo.rotulo }}</span>
+        <span class="folha-campo-rotulo" style="left:{{ _esq }}%;width:{{ _lw }}%;top:{{ campo.rotulo_y }}%">{{ campo.rotulo }}</span>
         <span class="folha-campo-linha" style="left:{{ _esq }}%;width:{{ _lw }}%;top:{{ campo.linha_y }}%"></span>
         {% if _nomes[papel] %}
-        <span class="folha-campo-nome" style="left:{{ _esq }}%;width:{{ _lw }}%;top:{{ campo.nome_y }}%;text-align:left">{{ _nomes[papel] }}</span>
+        <span class="folha-campo-nome" style="left:{{ _esq }}%;width:{{ _lw }}%;top:{{ campo.nome_y }}%">{{ _nomes[papel] }}</span>
         {% endif %}
         {% endfor %}
     </div>

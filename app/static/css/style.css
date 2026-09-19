@@ -1474,10 +1474,12 @@ a.stat-card-link.is-active { border-color: var(--primary); box-shadow: inset 0 0
 .fe-att { margin: 0; }
 .fe-data {
     position: absolute;
-    left: 6%;
+    left: 0;
+    width: 100%;
     top: 94%;
     margin: 0;
     font-size: .9rem;
+    text-align: center;
 }
 .folha-assinaturas--entrega .folha-campo-rotulo { font-size: .95rem; }
 .folha-assinaturas--entrega .folha-campo-nome { font-size: .85rem; }
