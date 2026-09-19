@@ -101,9 +101,19 @@ def _registar_guarda_modulo(app):
 
     from app.routes.modulos import BLUEPRINT_PARA_MODULO
 
+    # As imagens de assinatura são um recurso partilhado (mesma pasta,
+    # mesmas regras de acesso) independentemente de quem gerou o URL.
+    # url_assinatura() aponta sempre para "notas.servir_assinatura" —
+    # sem esta isenção, um utilizador a trabalhar no módulo "entrega"
+    # nunca conseguia ver nenhuma assinatura (o pedido à imagem era
+    # redirecionado para /modulos, e o <img> ficava partido).
+    _ENDPOINTS_ISENTOS_DE_MODULO = {"notas.servir_assinatura", "entrega.servir_assinatura"}
+
     @app.before_request
     def _exigir_modulo():
         if not current_user.is_authenticated:
+            return None
+        if request.endpoint in _ENDPOINTS_ISENTOS_DE_MODULO:
             return None
         modulos_da_rota = BLUEPRINT_PARA_MODULO.get(request.blueprint)
         if not modulos_da_rota:
