@@ -1820,8 +1820,12 @@ body.sig-capture-open { overflow: hidden; }
     position: fixed;
     inset: 0;
     z-index: 1090;
+    margin: 0;
     padding: 20px;
+    border: none;
     background: rgba(5, 30, 58, .55);
+    max-width: none;
+    max-height: none;
 }
 /* O <dialog> só deve ficar visível quando aberto via .showModal()/.close()
    (atributo [open]). Sem este guard, o display:flex sobrepunha-se ao

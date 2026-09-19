@@ -101,6 +101,16 @@ document.addEventListener("DOMContentLoaded", () => {
         aDesenhar = true;
         ultimo = pos(ev);
         canvas.setPointerCapture(ev.pointerId);
+        // Desenha logo um ponto no local do toque/clique. Sem isto, um
+        // clique sem arrastar (assinatura em forma de ponto/rubrica curta)
+        // não desenhava nada e o botão "Guardar" ficava desativado, porque
+        // só o pointermove marcava temTraco = true.
+        ctx.beginPath();
+        ctx.arc(ultimo.x, ultimo.y, ctx.lineWidth / 2, 0, Math.PI * 2);
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.fill();
+        temTraco = true;
+        atualizarGuardar();
         ev.preventDefault();
     });
     canvas.addEventListener("pointermove", (ev) => {
