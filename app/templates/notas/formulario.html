@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "includes/_modais_assinatura.html" import sig_captura %}
 {% set nota = nota|default(none) %}
 {% set sig_url = url_assinatura(current_user.assinatura_path) or (url_assinatura(nota.assinatura_entregue_path) if nota else none) %}
 {% block title %}{{ titulo }}{% endblock %}
@@ -148,6 +149,10 @@
 
             <div class="sig-slot {% if sig_url %}has-signature{% endif %}" id="sigSlot">
                 <input type="file" id="inputAssinatura" accept="image/png" hidden>
+                <button type="button" class="sig-draw-btn" id="btnDesenharAssinatura" title="Desenhar assinatura" aria-label="Desenhar assinatura">
+                    <i class="bi bi-pencil"></i>
+                    <span>Desenhar</span>
+                </button>
                 <button type="button" class="sig-upload-btn" id="btnUploadAssinatura" title="Carregar assinatura PNG" aria-label="Carregar assinatura PNG">
                     <i class="bi bi-cloud-arrow-up"></i>
                     <span>Carregar PNG</span>
@@ -225,6 +230,7 @@
         </div>
     </div>
 </div>
+{{ sig_captura() }}
 {% endblock %}
 
 {% block extra_js %}
@@ -242,5 +248,6 @@
 <script src="{{ asset('js/nota_form.js') }}"></script>
 <script src="{{ asset('js/destinatario.js') }}"></script>
 <script src="{{ asset('js/signature_zones.js') }}"></script>
+<script src="{{ asset('js/signature_canvas.js') }}"></script>
 <script src="{{ asset('js/signature_placement.js') }}"></script>
 {% endblock %}
