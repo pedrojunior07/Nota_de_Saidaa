@@ -47,9 +47,11 @@
         'entregue': (nota.criador.nome if nota.criador else ''),
         'seguranca': '',
     } %}
-    {% set _lw = ASSINATURA_LINHA_LARGURA %}
+    {% set _tipo_nota = 'entrega' if request.blueprint == 'entrega' else 'saida' %}
+    {% set _campos_sig = ASSINATURA_CAMPOS_ENTREGA if _tipo_nota == 'entrega' else ASSINATURA_CAMPOS %}
+    {% set _lw = ASSINATURA_LINHA_LARGURA_ENTREGA if _tipo_nota == 'entrega' else ASSINATURA_LINHA_LARGURA %}
     <div class="folha-assinaturas">
-        {% for papel, campo in ASSINATURA_CAMPOS.items() %}
+        {% for papel, campo in _campos_sig.items() %}
         {% set _esq = campo.cx - _lw / 2 %}
         <span class="folha-campo-rotulo" style="left:{{ _esq }}%;width:{{ _lw }}%;top:{{ campo.rotulo_y }}%">{{ campo.rotulo }}</span>
         <span class="folha-campo-linha" style="left:{{ _esq }}%;width:{{ _lw }}%;top:{{ campo.linha_y }}%"></span>
@@ -66,7 +68,7 @@
     ] %}
     {% set prefixo = 'assinatura_' ~ papel %}
     {% set url_sig = url_assinatura(nota|attr(prefixo ~ '_path')) %}
-    {% set d = ASSINATURA_DEFAULTS[papel] %}
+    {% set d = (ASSINATURA_DEFAULTS_ENTREGA if _tipo_nota == 'entrega' else ASSINATURA_DEFAULTS)[papel] %}
     {% if url_sig %}
     <img class="folha-sig" alt="{{ alt }}" data-papel="{{ papel }}"
          src="{{ url_sig }}"

@@ -7,8 +7,9 @@ Coordenadas em % da página A4, origem no canto superior esquerdo, Y para baixo.
   - "saida"   → grelha 2x2:
         Autorizado Por (aprovador)  |  Recebido (recebido)
         Entregue Por  (entregue)    |  Segurança (seguranca)
-  - "entrega" → assinaturas empilhadas na coluna esquerda, pela ordem
-        Autorizado por · Entregue por · Recebido por · Segurança
+  - "entrega" → a mesma grelha 2x2 (tal como no exemplar DHL):
+        Autorizado por (aprovador)  |  Recebido por (recebido)
+        Entregue por  (entregue)    |  Segurança (seguranca)
 """
 
 # Geometria do campo impresso de cada assinatura (rótulo + linha + nome).
@@ -24,22 +25,22 @@ _CAMPOS = {
         "seguranca": {"rotulo": "Segurança", "cx": 75.0, "linha_y": 89.0, "rotulo_y": 81.5, "nome_y": 91.1},
     },
     "entrega": {
-        "aprovador": {"rotulo": "Autorizado por", "cx": 25.0, "linha_y": 58.0, "rotulo_y": 51.5, "nome_y": 60.0},
-        "entregue": {"rotulo": "Entregue por", "cx": 25.0, "linha_y": 68.0, "rotulo_y": 61.5, "nome_y": 70.0},
-        "recebido": {"rotulo": "Recebido por", "cx": 25.0, "linha_y": 78.0, "rotulo_y": 71.5, "nome_y": 80.0},
-        "seguranca": {"rotulo": "Segurança", "cx": 25.0, "linha_y": 88.0, "rotulo_y": 81.5, "nome_y": 90.0},
+        "aprovador": {"rotulo": "Autorizado por", "cx": 28.0, "linha_y": 74.0, "rotulo_y": 66.5, "nome_y": 76.1},
+        "recebido": {"rotulo": "Recebido por", "cx": 72.0, "linha_y": 74.0, "rotulo_y": 66.5, "nome_y": 76.1},
+        "entregue": {"rotulo": "Entregue por", "cx": 28.0, "linha_y": 88.0, "rotulo_y": 80.5, "nome_y": 90.1},
+        "seguranca": {"rotulo": "Segurança", "cx": 72.0, "linha_y": 88.0, "rotulo_y": 80.5, "nome_y": 90.1},
     },
 }
 
 # Largura da linha impressa (e da coluna útil), em % da página, centrada em cx.
-_LINHA_LARGURA = {"saida": 32.0, "entrega": 40.0}
+_LINHA_LARGURA = {"saida": 32.0, "entrega": 32.0}
 
-_MARGEM_ACIMA = {"saida": 9.0, "entrega": 6.0}   # sobe até aqui acima da linha
+_MARGEM_ACIMA = {"saida": 9.0, "entrega": 9.0}   # sobe até aqui acima da linha
 _MARGEM_ABAIXO = 3.0    # e pode descer só um pouco abaixo da linha
 _BASE_ACIMA_LINHA = 1.5
 _BASE_ABAIXO_LINHA = 1.0
-_ALTURA_PADRAO = {"saida": 7.0, "entrega": 5.5}
-_LARGURA_PADRAO = {"saida": 30.0, "entrega": 36.0}
+_ALTURA_PADRAO = {"saida": 7.0, "entrega": 7.0}
+_LARGURA_PADRAO = {"saida": 30.0, "entrega": 30.0}
 
 LARGURA_MINIMA = 8.0
 ALTURA_MINIMA = 4.0

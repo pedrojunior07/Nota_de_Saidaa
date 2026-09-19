@@ -106,7 +106,8 @@
         <div class="panel mb-3 mt-3" id="assinaturasEntrega"
              data-nota="{{ nota.id }}"
              data-url-base="{{ url_for(request.blueprint ~ '.detalhe', nota_id=nota.id) }}"
-             data-upload-url="{{ url_for(request.blueprint ~ '.upload_minha_assinatura') }}">
+             data-upload-url="{{ url_for(request.blueprint ~ '.upload_minha_assinatura') }}"
+             data-tipo="{{ 'entrega' if request.blueprint == 'entrega' else 'saida' }}">
             <div class="panel-head"><h2>Assinaturas da entrega</h2></div>
 
             {% if _recolher_recebido %}

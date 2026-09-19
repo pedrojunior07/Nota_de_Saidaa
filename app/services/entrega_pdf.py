@@ -70,10 +70,11 @@ def gerar_pdf_entrega(nota, pasta_pdf):
     c.drawString(MARGEM_ESQ, y, f"No. Ref. {_numero_documento(nota)}")
     y -= 28
 
-    # ---- DE / Att -------------------------------------------------------
+    # ---- DE / Att (caixa com borda, como no exemplar) ------------------
+    caixa_topo = y + 14
     meio = MARGEM_ESQ + 250
     c.setFont(fonte_b, 10)
-    c.drawString(MARGEM_ESQ, y, "DE :")
+    c.drawString(MARGEM_ESQ + 6, y, "DE :")
     c.drawString(meio, y, "Att:")
     y -= 14
     c.setFont(fonte, 9.5)
@@ -85,11 +86,18 @@ def gerar_pdf_entrega(nota, pasta_pdf):
         linhas_de.append(f"Tel: {config.contacto}")
     y_de = y
     for ln in linhas_de:
-        c.drawString(MARGEM_ESQ + 10, y_de, ln)
+        c.drawString(MARGEM_ESQ + 16, y_de, ln)
         y_de -= 13
     c.setFont(fonte_b, 10)
     c.drawString(meio + 10, y, nota.funcionario)
-    y = min(y_de, y - 13) - 12
+    caixa_fundo = min(y_de, y - 13) - 8
+
+    c.setStrokeColor(black)
+    c.setLineWidth(0.9)
+    c.rect(MARGEM_ESQ, caixa_fundo, MARGEM_DIR - MARGEM_ESQ, caixa_topo - caixa_fundo)
+    c.line(meio - 10, caixa_topo, meio - 10, caixa_fundo)
+
+    y = caixa_fundo - 18
 
     # ---- Assunto ------------------------------------------------------
     c.setFont(fonte_b, 11)

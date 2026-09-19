@@ -5,7 +5,9 @@
  *   "saida"   grelha 2x2:
  *       Autorizado Por (aprovador)  |  Recebido (recebido)
  *       Entregue Por  (entregue)    |  Segurança (seguranca)
- *   "entrega" assinaturas empilhadas na coluna esquerda.
+ *   "entrega" a mesma grelha 2x2 (tal como no exemplar DHL):
+ *       Autorizado por (aprovador)  |  Recebido por (recebido)
+ *       Entregue por  (entregue)    |  Segurança (seguranca)
  *
  * Coordenadas em % da folha (proporção A4), origem no canto superior
  * esquerdo, Y para baixo.
@@ -19,16 +21,16 @@
             seguranca: { rotulo: "Segurança", cx: 75.0, linhaY: 89.0, rotuloY: 81.5, nomeY: 91.1 },
         },
         entrega: {
-            aprovador: { rotulo: "Autorizado por", cx: 25.0, linhaY: 58.0, rotuloY: 51.5, nomeY: 60.0 },
-            entregue: { rotulo: "Entregue por", cx: 25.0, linhaY: 68.0, rotuloY: 61.5, nomeY: 70.0 },
-            recebido: { rotulo: "Recebido por", cx: 25.0, linhaY: 78.0, rotuloY: 71.5, nomeY: 80.0 },
-            seguranca: { rotulo: "Segurança", cx: 25.0, linhaY: 88.0, rotuloY: 81.5, nomeY: 90.0 },
+            aprovador: { rotulo: "Autorizado por", cx: 28.0, linhaY: 74.0, rotuloY: 66.5, nomeY: 76.1 },
+            recebido: { rotulo: "Recebido por", cx: 72.0, linhaY: 74.0, rotuloY: 66.5, nomeY: 76.1 },
+            entregue: { rotulo: "Entregue por", cx: 28.0, linhaY: 88.0, rotuloY: 80.5, nomeY: 90.1 },
+            seguranca: { rotulo: "Segurança", cx: 72.0, linhaY: 88.0, rotuloY: 80.5, nomeY: 90.1 },
         },
     };
-    const LINHA_LARGURA_POR_TIPO = { saida: 32.0, entrega: 40.0 };
-    const LARGURA_PADRAO_POR_TIPO = { saida: 30.0, entrega: 36.0 };
-    const MARGEM_ACIMA_POR_TIPO = { saida: 9.0, entrega: 6.0 };
-    const ALTURA_PADRAO_POR_TIPO = { saida: 7.0, entrega: 5.5 };
+    const LINHA_LARGURA_POR_TIPO = { saida: 32.0, entrega: 32.0 };
+    const LARGURA_PADRAO_POR_TIPO = { saida: 30.0, entrega: 30.0 };
+    const MARGEM_ACIMA_POR_TIPO = { saida: 9.0, entrega: 9.0 };
+    const ALTURA_PADRAO_POR_TIPO = { saida: 7.0, entrega: 7.0 };
 
     const MARGEM_ABAIXO = 3.0;
     const BASE_ACIMA_LINHA = 1.5;
