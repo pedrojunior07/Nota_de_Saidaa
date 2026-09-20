@@ -69,7 +69,12 @@ class ValorCampoDinamico(db.Model):
         db.Integer, db.ForeignKey("campos_dinamicos.id", ondelete="CASCADE"), nullable=False
     )
     documento_tipo = db.Column(db.String(10), nullable=False)  # "saida" | "entrega"
-    documento_id = db.Column(db.Integer, nullable=False)
+    # String (não Integer): tem de suportar tanto o id inteiro de uma nota
+    # SQLAlchemy (ex.: "42") como o ObjectId em hexadecimal de uma nota
+    # MongoDB (ex.: "6ab02bfa545c27b7436405a3") — este último rebentaria
+    # numa coluna Integer estrita como o PostgreSQL (o SQLite tolera por
+    # tipagem dinâmica, mas não é para confiar nisso em produção).
+    documento_id = db.Column(db.String(50), nullable=False)
     valor = db.Column(db.Text, nullable=True)
 
     campo = db.relationship("CampoDinamico")

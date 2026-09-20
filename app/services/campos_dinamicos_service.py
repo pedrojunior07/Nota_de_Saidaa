@@ -78,6 +78,7 @@ def alternar_ativo(campo):
 
 def obter_valores(tipo_documento, documento_id):
     """``{campo_id: valor}`` já guardados nesta nota."""
+    documento_id = str(documento_id)
     linhas = ValorCampoDinamico.query.filter_by(
         documento_tipo=tipo_documento, documento_id=documento_id
     ).all()
@@ -87,6 +88,7 @@ def obter_valores(tipo_documento, documento_id):
 def guardar_valores(tipo_documento, documento_id, respostas):
     """``respostas``: ``{campo_id: valor_string_ou_None}``. Só grava campos
     aplicáveis e ativos; remove a linha quando o valor fica vazio."""
+    documento_id = str(documento_id)
     campos = {c.id: c for c in listar_aplicaveis(tipo_documento)}
     existentes = {
         linha.campo_id: linha
@@ -133,6 +135,7 @@ def valores_para_exibir(tipo_documento, documento_id):
     Inclui campos entretanto desativados, para preservar o histórico já
     impresso/guardado numa nota concreta.
     """
+    documento_id = str(documento_id)
     linhas = (
         db.session.query(ValorCampoDinamico, CampoDinamico)
         .join(CampoDinamico, ValorCampoDinamico.campo_id == CampoDinamico.id)
@@ -153,6 +156,7 @@ def valores_para_exibir(tipo_documento, documento_id):
 
 
 def apagar_valores(tipo_documento, documento_id):
+    documento_id = str(documento_id)
     ValorCampoDinamico.query.filter_by(
         documento_tipo=tipo_documento, documento_id=documento_id
     ).delete()
