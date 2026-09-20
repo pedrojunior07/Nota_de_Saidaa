@@ -34,9 +34,14 @@ def _registar_fontes():
 
 
 def numero_documento(nota):
-    """Nr. Ref. no formato do exemplar: 000003/2026."""
-    ano = nota.data_emissao.year if nota.data_emissao else 2026
-    return f"{nota.id:06d}/{ano}"
+    """Nr. Ref. no formato do exemplar: 000003/2026.
+
+    Delega na propriedade do próprio objeto (nota.numero_documento) em vez
+    de recalcular a partir de nota.id — o id é um inteiro no SQLAlchemy mas
+    uma string (ObjectId) no adaptador Mongo, por isso não dá para formatar
+    aqui diretamente com "{:06d}".
+    """
+    return nota.numero_documento
 
 
 def _linhas_item(item):
