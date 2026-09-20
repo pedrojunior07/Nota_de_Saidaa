@@ -22,8 +22,10 @@ MESES = [
 
 
 def _numero_documento(nota):
-    ano = nota.data_emissao.year if nota.data_emissao else 2026
-    return f"{nota.id:04d}/{ano}"
+    """Delega em nota.numero_documento — ver a nota equivalente em
+    pdf_service.numero_documento() sobre porque não se pode formatar
+    nota.id diretamente aqui (string no adaptador Mongo)."""
+    return nota.numero_documento
 
 
 def _cabecalho(c, fonte_b):

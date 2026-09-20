@@ -8,7 +8,12 @@ Fluxo (igual ao da Nota de Saída):
 
 A assinatura do «Segurança» é opcional e pode ser recolhida a qualquer
 momento antes da conclusão — não bloqueia nem a submissão nem a conclusão.
+
+Tal como a Nota de Saída, suporta um caminho MongoDB paralelo, ligado
+pela flag de ambiente USE_MONGO_ENTREGA (ver app/repositories/entrega.py).
 """
+
+import os
 
 from flask import current_app
 from sqlalchemy import or_
@@ -18,15 +23,27 @@ from app.models.historico_entrega import HistoricoEntrega
 from app.models.item_entrega import ItemEntrega
 from app.models.nota_entrega import NotaEntrega
 from app.models.user import User
+from app.repositories.entrega import MongoEntregaRepository, _NotaEntregaMongoAdapter, _PessoaRefMongoEntrega
 from app.services.entrega_pdf import gerar_pdf_entrega
 from app.utils.assinatura_zonas import enquadrar as _enquadrar
 from app.utils.constants import ESTADOS_LABEL, EstadoNota, Perfil
 from app.utils.tempo import agora
 
 
+def _mongo_entrega_ativo() -> bool:
+    if os.environ.get("USE_MONGO_ENTREGA", "0").strip().lower() not in {"1", "true", "yes", "on"}:
+        return False
+    try:
+        from app.repositories.base import get_db
+        return get_db() is not None
+    except Exception:
+        return False
+
+
 def enquadrar(papel, posicao):
     """Enquadra uma posição de assinatura na variante «entrega»."""
     return _enquadrar(papel, posicao, tipo="entrega")
+
 
 PAPEIS_ASSINATURA = {
     "entregue": ("assinatura_entregue", "Entregue Por"),
@@ -37,7 +54,24 @@ PAPEIS_ASSINATURA = {
 
 def registrar(nota, acao, utilizador=None):
     nome = getattr(utilizador, "nome", None) or "Sistema"
+    if isinstance(nota, _NotaEntregaMongoAdapter):
+        MongoEntregaRepository().adicionar_historico(nota.id, nome, acao)
+        return
     db.session.add(HistoricoEntrega(nota_id=nota.id, utilizador=nome, acao=acao))
+
+
+def _obter_tecnico_valido(tecnico_id):
+    if os.environ.get("USE_MONGO_USERS", "0").strip().lower() in {"1", "true", "yes", "on"}:
+        from app.repositories.users import UserRepository
+
+        tecnico = UserRepository().get(tecnico_id)
+    else:
+        tecnico = db.session.get(User, tecnico_id)
+    if tecnico is None or not tecnico.ativo:
+        raise ValueError("Técnico inválido.")
+    if tecnico.perfil not in {Perfil.TECNICO.value, Perfil.TECNICO_ADMIN.value}:
+        raise ValueError("Seleccione um técnico de informática.")
+    return tecnico
 
 
 # ---- itens ----------------------------------------------------------------
@@ -102,6 +136,15 @@ def _aplicar_assinatura_entregue(nota, utilizador, posicao=None):
             setattr(nota, f"assinatura_entregue_{eixo}", pos[eixo])
 
 
+def _aplicar_assinatura_entregue_mongo(repo, nota, utilizador, posicao=None):
+    if utilizador.assinatura_path and not nota.assinatura_entregue_path:
+        pos = enquadrar("entregue", posicao) if posicao else None
+        repo.definir_assinatura(nota.id, "entregue", path=utilizador.assinatura_path, posicao=pos)
+    elif posicao and nota.assinatura_entregue_path:
+        pos = enquadrar("entregue", posicao)
+        repo.definir_assinatura(nota.id, "entregue", posicao=pos)
+
+
 def carregar_nota(dados, ficheiro, utilizador):
     """Regista uma Nota de Entrega já existente (documento externo, ex.: nota
     antiga digitalizada) diretamente na listagem, sem o fluxo normal de
@@ -112,6 +155,29 @@ def carregar_nota(dados, ficheiro, utilizador):
     caminho_pdf, erro = guardar_pdf_upload(ficheiro)
     if erro:
         raise ValueError(erro)
+
+    if _mongo_entrega_ativo():
+        repo = MongoEntregaRepository()
+        nota = repo.criar(
+            numero_referencia=dados["numero_referencia"].strip(),
+            data_emissao=dados["data_emissao"],
+            funcionario=dados["funcionario"].strip(),
+            email_funcionario=dados["email_funcionario"].strip().lower(),
+            departamento="N/A",
+            motivo="Nota carregada manualmente",
+            origem_local=(dados.get("origem_local") or "Sede IT").strip(),
+            local_emissao="Maputo",
+            estado=dados["estado"],
+            criado_por=utilizador.id,
+            criador_nome=utilizador.nome,
+            criador_username=getattr(utilizador, "username", None),
+        )
+        repo.definir_pdf(nota.id, caminho_pdf, carregado=True)
+        if dados["estado"] == EstadoNota.CONCLUIDA.value:
+            repo.col.update_one({"_id": nota._oid}, {"$set": {"data_conclusao": agora()}})
+        rotulo_estado = ESTADOS_LABEL.get(dados["estado"], dados["estado"])
+        registrar(nota, f"Carregou a nota a partir de um PDF externo. Estado inicial: {rotulo_estado}.", utilizador)
+        return repo.obter_por_id(nota.id)
 
     nota = NotaEntrega(
         numero_referencia=dados["numero_referencia"].strip(),
@@ -140,6 +206,29 @@ def carregar_nota(dados, ficheiro, utilizador):
 
 
 def criar_nota(dados, itens, utilizador, posicao_assinatura=None):
+    if _mongo_entrega_ativo():
+        repo = MongoEntregaRepository()
+        nota = repo.criar(
+            numero_referencia=dados["numero_referencia"].strip(),
+            data_emissao=dados["data_emissao"],
+            funcionario=dados["funcionario"].strip(),
+            email_funcionario=dados["email_funcionario"].strip().lower(),
+            departamento=dados["departamento"].strip(),
+            motivo=dados["motivo"],
+            observacao=(dados.get("observacao") or "").strip() or None,
+            origem_local=(dados.get("origem_local") or "Sede IT").strip(),
+            local_emissao=(dados.get("local_emissao") or "Maputo").strip(),
+            criado_por=utilizador.id,
+            criador_nome=utilizador.nome,
+            criador_username=getattr(utilizador, "username", None),
+            itens=itens,
+            estado=EstadoNota.RASCUNHO.value,
+        )
+        _aplicar_assinatura_entregue_mongo(repo, nota, utilizador, posicao_assinatura)
+        nota = repo.obter_por_id(nota.id)
+        registrar(nota, "Criou a nota de entrega (rascunho).", utilizador)
+        return repo.obter_por_id(nota.id)
+
     nota = NotaEntrega(
         numero_referencia=dados["numero_referencia"].strip(),
         data_emissao=dados["data_emissao"],
@@ -163,6 +252,27 @@ def criar_nota(dados, itens, utilizador, posicao_assinatura=None):
 
 
 def atualizar_nota(nota, dados, itens, utilizador, submeter=False, posicao_assinatura=None):
+    if isinstance(nota, _NotaEntregaMongoAdapter):
+        repo = MongoEntregaRepository()
+        repo.atualizar_dados(
+            nota.id,
+            numero_referencia=dados["numero_referencia"],
+            data_emissao=dados["data_emissao"],
+            funcionario=dados["funcionario"],
+            email_funcionario=dados["email_funcionario"],
+            departamento=dados["departamento"],
+            motivo=dados["motivo"],
+            observacao=dados.get("observacao"),
+            origem_local=dados.get("origem_local"),
+            local_emissao=dados.get("local_emissao"),
+            itens=itens,
+        )
+        _aplicar_assinatura_entregue_mongo(repo, nota, utilizador, posicao_assinatura)
+        registrar(nota, "Atualizou os dados da nota.", utilizador)
+        if submeter:
+            _submeter(nota, utilizador)
+        return repo.obter_por_id(nota.id)
+
     _aplicar_dados(nota, dados)
     _substituir_itens(nota, itens)
     _aplicar_assinatura_entregue(nota, utilizador, posicao_assinatura)
@@ -181,6 +291,13 @@ def _submeter(nota, utilizador):
             "A nota precisa da assinatura «Entregue Por» antes de ser "
             "submetida para aprovação."
         )
+    if isinstance(nota, _NotaEntregaMongoAdapter):
+        MongoEntregaRepository().submeter(nota.id)
+        nota.estado = EstadoNota.PENDENTE_APROVACAO.value
+        nota.comentario_decisao = None
+        nota.revisao_tecnico_id = None
+        registrar(nota, "Submeteu a nota para aprovação.", utilizador)
+        return
     nota.estado = EstadoNota.PENDENTE_APROVACAO.value
     nota.comentario_decisao = None
     nota.revisao_tecnico_id = None
@@ -189,13 +306,39 @@ def _submeter(nota, utilizador):
 
 def submeter_nota(nota, utilizador):
     _submeter(nota, utilizador)
-    db.session.commit()
+    if not isinstance(nota, _NotaEntregaMongoAdapter):
+        db.session.commit()
 
 
 def aprovar_nota(nota, utilizador, comentario=None, posicao_assinatura=None):
     """O Aprovador assina «Autorizado por» em segundo lugar. A nota fica
     APROVADA e aguarda a assinatura de «Recebido» para ser concluída. A do
     Segurança é opcional e não bloqueia a conclusão."""
+    if isinstance(nota, _NotaEntregaMongoAdapter):
+        repo = MongoEntregaRepository()
+        pos = enquadrar("aprovador", posicao_assinatura) if posicao_assinatura else None
+        if utilizador.assinatura_path:
+            repo.definir_assinatura(nota.id, "aprovador", path=utilizador.assinatura_path, posicao=pos)
+            nota.assinatura_aprovador_path = utilizador.assinatura_path
+        elif pos:
+            repo.definir_assinatura(nota.id, "aprovador", posicao=pos)
+        if pos:
+            for eixo in ("x", "y", "w", "h"):
+                setattr(nota, f"assinatura_aprovador_{eixo}", pos[eixo])
+        repo.aprovar(nota.id, aprovado_por=utilizador.id, comentario=comentario,
+                     aprovador_nome=utilizador.nome, aprovador_username=getattr(utilizador, "username", None))
+        nota.aprovado_por = utilizador.id
+        nota.aprovador = _PessoaRefMongoEntrega(utilizador.id, getattr(utilizador, "username", None), utilizador.nome)
+        nota.data_aprovacao = agora()
+        nota.comentario_decisao = comentario or None
+        nota.estado = EstadoNota.APROVADA.value
+        acao = "Aprovou e assinou «Autorizado por»."
+        if comentario:
+            acao += f" Comentário: {comentario}"
+        registrar(nota, acao, utilizador)
+        registrar(nota, "A aguardar a assinatura de «Recebido».", None)
+        return
+
     nota.aprovado_por = utilizador.id
     nota.data_aprovacao = agora()
     nota.comentario_decisao = comentario or None
@@ -215,23 +358,49 @@ def aprovar_nota(nota, utilizador, comentario=None, posicao_assinatura=None):
 
 
 def rejeitar_nota(nota, utilizador, comentario=None):
+    acao = "Rejeitou a nota de entrega."
+    if comentario:
+        acao += f" Motivo: {comentario}"
+
+    if isinstance(nota, _NotaEntregaMongoAdapter):
+        MongoEntregaRepository().rejeitar(nota.id, aprovado_por=utilizador.id, comentario=comentario,
+                                           aprovador_nome=utilizador.nome, aprovador_username=getattr(utilizador, "username", None))
+        nota.estado = EstadoNota.REJEITADA.value
+        nota.aprovado_por = utilizador.id
+        nota.aprovador = _PessoaRefMongoEntrega(utilizador.id, getattr(utilizador, "username", None), utilizador.nome)
+        nota.data_aprovacao = agora()
+        nota.comentario_decisao = comentario or None
+        registrar(nota, acao, utilizador)
+        return
+
     nota.estado = EstadoNota.REJEITADA.value
     nota.aprovado_por = utilizador.id
     nota.data_aprovacao = agora()
     nota.comentario_decisao = comentario or None
-    acao = "Rejeitou a nota de entrega."
-    if comentario:
-        acao += f" Motivo: {comentario}"
     registrar(nota, acao, utilizador)
     db.session.commit()
 
 
 def devolver_para_revisao(nota, utilizador, tecnico_id, motivo):
-    tecnico = db.session.get(User, tecnico_id)
-    if tecnico is None or not tecnico.ativo:
-        raise ValueError("Técnico inválido.")
-    if tecnico.perfil not in {Perfil.TECNICO.value, Perfil.TECNICO_ADMIN.value}:
-        raise ValueError("Seleccione um técnico de informática.")
+    tecnico = _obter_tecnico_valido(tecnico_id)
+    acao = f"Devolveu a nota para revisão a {tecnico.nome}. Motivo: {motivo}"
+
+    if isinstance(nota, _NotaEntregaMongoAdapter):
+        MongoEntregaRepository().devolver_para_revisao(nota.id, tecnico_id=tecnico.id, motivo=motivo,
+                                                         tecnico_nome=tecnico.nome, tecnico_username=getattr(tecnico, "username", None))
+        nota.estado = EstadoNota.EM_REVISAO.value
+        nota.revisao_tecnico_id = tecnico.id
+        nota.revisao_tecnico = _PessoaRefMongoEntrega(tecnico.id, getattr(tecnico, "username", None), tecnico.nome)
+        nota.comentario_decisao = motivo
+        nota.aprovado_por = None
+        nota.aprovador = _PessoaRefMongoEntrega()
+        nota.data_aprovacao = None
+        nota.assinatura_aprovador_path = None
+        for eixo in ("x", "y", "w", "h"):
+            setattr(nota, f"assinatura_aprovador_{eixo}", None)
+        registrar(nota, acao, utilizador)
+        return
+
     nota.estado = EstadoNota.EM_REVISAO.value
     nota.revisao_tecnico_id = tecnico.id
     nota.comentario_decisao = motivo
@@ -240,7 +409,7 @@ def devolver_para_revisao(nota, utilizador, tecnico_id, motivo):
     nota.assinatura_aprovador_path = None
     for eixo in ("x", "y", "w", "h"):
         setattr(nota, f"assinatura_aprovador_{eixo}", None)
-    registrar(nota, f"Devolveu a nota para revisão a {tecnico.nome}. Motivo: {motivo}", utilizador)
+    registrar(nota, acao, utilizador)
     db.session.commit()
 
 
@@ -259,8 +428,6 @@ def guardar_assinatura_papel(nota, papel, dataurl, utilizador, posicao=None):
         raise ValueError("Já não é possível alterar esta assinatura.")
     if papel == "recebido" and nota.estado != EstadoNota.APROVADA.value:
         raise ValueError("A assinatura de «Recebido» só é recolhida depois da aprovação.")
-    # A assinatura do Segurança é opcional: não tem restrição de ordem além
-    # dos estados gerais já geridos por pode_gerir_assinaturas (ver rota).
 
     prefixo, rotulo = PAPEIS_ASSINATURA[papel]
     nome_fixo = f"sig_entrega_{nota.id}_{papel}.png"
@@ -269,6 +436,28 @@ def guardar_assinatura_papel(nota, papel, dataurl, utilizador, posicao=None):
         raise ValueError(erro)
 
     anterior = getattr(nota, f"{prefixo}_path")
+
+    if isinstance(nota, _NotaEntregaMongoAdapter):
+        repo = MongoEntregaRepository()
+        pos = enquadrar(papel, posicao) if posicao else None
+        repo.definir_assinatura(nota.id, papel, path=fname, posicao=pos)
+        setattr(nota, f"{prefixo}_path", fname)
+        if pos:
+            for eixo in ("x", "y", "w", "h"):
+                setattr(nota, f"{prefixo}_{eixo}", pos[eixo])
+        if anterior and anterior != fname:
+            remover_ficheiro(anterior)
+        registrar(nota, f"Recolheu a assinatura «{rotulo}».", utilizador)
+        if papel == "seguranca":
+            repo.definir_seguranca(nota.id, seguranca_por=utilizador.id, seguranca_nome=utilizador.nome,
+                                    seguranca_username=getattr(utilizador, "username", None))
+            nota.seguranca_por = utilizador.id
+            nota.seguranca = _PessoaRefMongoEntrega(utilizador.id, getattr(utilizador, "username", None), utilizador.nome)
+            nota.data_seguranca = agora()
+        if papel == "recebido" and nota.estado == EstadoNota.APROVADA.value:
+            _concluir(nota, utilizador)
+        return fname
+
     setattr(nota, f"{prefixo}_path", fname)
     if posicao:
         pos = enquadrar(papel, posicao)
@@ -291,6 +480,14 @@ def guardar_assinatura_papel(nota, papel, dataurl, utilizador, posicao=None):
 def _concluir(nota, utilizador):
     """A assinatura de «Recebido» é quem conclui a nota (a do Segurança é
     opcional e não faz parte deste gatilho)."""
+    if isinstance(nota, _NotaEntregaMongoAdapter):
+        caminho = gerar_pdf_entrega(nota, current_app.config["PDF_FOLDER"])
+        MongoEntregaRepository().concluir(nota.id, pdf_path=caminho)
+        nota.estado = EstadoNota.CONCLUIDA.value
+        nota.data_conclusao = agora()
+        nota.pdf_path = caminho
+        registrar(nota, "Nota de entrega concluída. PDF oficial gerado.", utilizador)
+        return
     nota.estado = EstadoNota.CONCLUIDA.value
     nota.data_conclusao = agora()
     caminho = gerar_pdf_entrega(nota, current_app.config["PDF_FOLDER"])
@@ -305,6 +502,21 @@ def remover_assinatura_papel(nota, papel, utilizador):
         raise ValueError("Papel de assinatura inválido.")
     prefixo, rotulo = PAPEIS_ASSINATURA[papel]
     anterior = getattr(nota, f"{prefixo}_path")
+
+    if isinstance(nota, _NotaEntregaMongoAdapter):
+        MongoEntregaRepository().definir_assinatura(nota.id, papel, limpar=True)
+        setattr(nota, f"{prefixo}_path", None)
+        for eixo in ("x", "y", "w", "h"):
+            setattr(nota, f"{prefixo}_{eixo}", None)
+        if anterior:
+            remover_ficheiro(anterior)
+        if papel == "seguranca":
+            nota.seguranca_por = None
+            nota.seguranca = _PessoaRefMongoEntrega()
+            nota.data_seguranca = None
+        registrar(nota, f"Removeu a assinatura «{rotulo}».", utilizador)
+        return
+
     setattr(nota, f"{prefixo}_path", None)
     for eixo in ("x", "y", "w", "h"):
         setattr(nota, f"{prefixo}_{eixo}", None)
@@ -331,6 +543,14 @@ def atualizar_posicao_assinatura(nota, papel, posicao, utilizador):
         except (TypeError, ValueError):
             raise ValueError("Posição de assinatura inválida.")
     pos = enquadrar(papel, posicao)
+
+    if isinstance(nota, _NotaEntregaMongoAdapter):
+        MongoEntregaRepository().definir_assinatura(nota.id, papel, posicao=pos)
+        for eixo in ("x", "y", "w", "h"):
+            setattr(nota, f"{prefixo}_{eixo}", pos[eixo])
+        registrar(nota, f"Reposicionou a assinatura «{rotulo}».", utilizador)
+        return
+
     for eixo in ("x", "y", "w", "h"):
         setattr(nota, f"{prefixo}_{eixo}", pos[eixo])
     registrar(nota, f"Reposicionou a assinatura «{rotulo}».", utilizador)
@@ -341,6 +561,19 @@ def atualizar_posicao_assinatura(nota, papel, posicao, utilizador):
 
 def apagar_nota(nota):
     from app.utils.assinatura import remover_ficheiro
+
+    if isinstance(nota, _NotaEntregaMongoAdapter):
+        if nota.pdf_path:
+            remover_ficheiro(nota.pdf_path)
+        for nome in (
+            nota.assinatura_entregue_path,
+            nota.assinatura_recebido_path,
+            nota.assinatura_seguranca_path,
+            nota.assinatura_aprovador_path,
+        ):
+            if nome and nome.startswith("sig_entrega_"):
+                remover_ficheiro(nome)
+        return MongoEntregaRepository().apagar(nota.id)
 
     if nota.pdf_path:
         remover_ficheiro(nota.pdf_path)
@@ -357,10 +590,15 @@ def apagar_nota(nota):
     campos_dinamicos_service.apagar_valores("entrega", nota.id)
     db.session.delete(nota)
     db.session.commit()
+    return True
 
 
 def garantir_pdf(nota):
     caminho = gerar_pdf_entrega(nota, current_app.config["PDF_FOLDER"])
+    if isinstance(nota, _NotaEntregaMongoAdapter):
+        MongoEntregaRepository().definir_pdf(nota.id, caminho, carregado=nota.pdf_carregado)
+        nota.pdf_path = caminho
+        return caminho
     nota.pdf_path = caminho
     db.session.commit()
     return caminho
@@ -369,14 +607,23 @@ def garantir_pdf(nota):
 def choices_tecnicos():
     """Técnicos elegíveis para revisão. O Administrador gere a plataforma e
     não interage com notas, por isso não entra nesta lista."""
-    tecnicos = (
-        User.query.filter(
-            User.ativo.is_(True),
-            User.perfil.in_([Perfil.TECNICO.value, Perfil.TECNICO_ADMIN.value]),
+    if os.environ.get("USE_MONGO_USERS", "0").strip().lower() in {"1", "true", "yes", "on"}:
+        from app.repositories.users import UserRepository
+
+        tecnicos = [
+            u for u in UserRepository().listar()
+            if u.ativo and u.perfil in {Perfil.TECNICO.value, Perfil.TECNICO_ADMIN.value}
+        ]
+        tecnicos.sort(key=lambda u: u.nome or "")
+    else:
+        tecnicos = (
+            User.query.filter(
+                User.ativo.is_(True),
+                User.perfil.in_([Perfil.TECNICO.value, Perfil.TECNICO_ADMIN.value]),
+            )
+            .order_by(User.nome.asc())
+            .all()
         )
-        .order_by(User.nome.asc())
-        .all()
-    )
     return [(0, "Seleccione o técnico")] + [(u.id, f"{u.nome} — {u.username}") for u in tecnicos]
 
 
@@ -401,6 +648,20 @@ def estatisticas(query_base=None):
     }
 
 
+def estatisticas_mongo(filtro_base=None):
+    filtro = dict(filtro_base or {})
+    contar = lambda extra: MongoEntregaRepository().contar({**filtro, **extra})
+    return {
+        "total": contar({}),
+        "rascunho": contar({"estado": EstadoNota.RASCUNHO.value}),
+        "pendentes": contar({"estado": EstadoNota.PENDENTE_APROVACAO.value}),
+        "em_revisao": contar({"estado": EstadoNota.EM_REVISAO.value}),
+        "aprovadas": contar({"estado": EstadoNota.APROVADA.value}),
+        "rejeitadas": contar({"estado": EstadoNota.REJEITADA.value}),
+        "concluidas": contar({"estado": EstadoNota.CONCLUIDA.value}),
+    }
+
+
 def pesquisar(query_base, referencia=None, colaborador=None, estado=None, data_inicio=None, data_fim=None):
     consulta = query_base
     if referencia:
@@ -417,3 +678,25 @@ def pesquisar(query_base, referencia=None, colaborador=None, estado=None, data_i
     if data_fim:
         consulta = consulta.filter(NotaEntrega.data_emissao <= data_fim)
     return consulta.order_by(NotaEntrega.data_criacao.desc())
+
+
+def pesquisar_mongo(filtro_base, referencia=None, colaborador=None, estado=None, data_inicio=None, data_fim=None):
+    import re
+    from datetime import datetime, timezone
+
+    filtro = dict(filtro_base or {})
+    if referencia:
+        filtro["numero_referencia"] = {"$regex": re.escape(referencia.strip()), "$options": "i"}
+    if colaborador:
+        termo = {"$regex": re.escape(colaborador.strip()), "$options": "i"}
+        filtro["$or"] = [{"funcionario": termo}, {"email_funcionario": termo}]
+    if estado:
+        filtro["estado"] = estado
+    if data_inicio or data_fim:
+        intervalo = {}
+        if data_inicio:
+            intervalo["$gte"] = datetime.combine(data_inicio, datetime.min.time()).replace(tzinfo=timezone.utc)
+        if data_fim:
+            intervalo["$lte"] = datetime.combine(data_fim, datetime.min.time()).replace(tzinfo=timezone.utc)
+        filtro["data_emissao"] = intervalo
+    return MongoEntregaRepository().listar(filtro)
