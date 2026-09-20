@@ -63,15 +63,11 @@
 <div class="panel mb-3">
     <form class="filter-form" method="get">
         <div class="row g-2 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label">Referência</label>
-                <input type="text" name="referencia" value="{{ filtros.referencia }}" class="form-control" placeholder="INC000...">
-            </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <label class="form-label">Colaborador</label>
                 <input type="text" name="colaborador" value="{{ filtros.colaborador }}" class="form-control" placeholder="Nome ou e-mail">
             </div>
-            <div class="col-md-2">
+            <div class="col-md-4">
                 <label class="form-label">Estado</label>
                 <select name="estado" class="form-select">
                     <option value="">Todos</option>
@@ -80,11 +76,17 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-4">
+                <label class="form-label">ID de Remedy</label>
+                <input type="text" name="referencia" value="{{ filtros.referencia }}" class="form-control" placeholder="REQ000006253074">
+            </div>
+        </div>
+        <div class="row g-2 align-items-end mt-0">
+            <div class="col-md-3">
                 <label class="form-label">De</label>
                 <input type="date" name="data_inicio" value="{{ filtros.data_inicio }}" class="form-control">
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <label class="form-label">Até</label>
                 <input type="date" name="data_fim" value="{{ filtros.data_fim }}" class="form-control">
             </div>
