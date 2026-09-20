@@ -66,7 +66,12 @@ document.addEventListener("DOMContentLoaded", () => {
     canvas.addEventListener("pointerdown", (ev) => {
         aDesenhar = true;
         ultimo = pos(ev);
-        canvas.setPointerCapture(ev.pointerId);
+        // Em alguns browsers/drivers de caneta, capturar o ponteiro pode
+        // falhar (ex.: id de ponteiro já não é válido) — isso não deve
+        // impedir o desenho de continuar a funcionar.
+        try {
+            canvas.setPointerCapture(ev.pointerId);
+        } catch (_err) { /* ignorar — segue sem captura */ }
         // Desenha logo um ponto no local do toque/clique. Sem isto, um
         // clique sem arrastar (assinatura em forma de ponto/rubrica curta)
         // não desenhava nada e o botão "Guardar" ficava desativado, porque
@@ -82,10 +87,21 @@ document.addEventListener("DOMContentLoaded", () => {
     canvas.addEventListener("pointermove", (ev) => {
         if (!aDesenhar) return;
         // Eventos coalescidos = traço mais suave com caneta/touch de alta taxa.
-        const eventos = ev.getCoalescedEvents ? ev.getCoalescedEvents() : [ev];
-        for (const e of eventos.length ? eventos : [ev]) {
+        // Nem todas as canetas/tablets/browsers suportam isto de forma
+        // fiável — se falhar, desenha só com o evento atual.
+        let eventos;
+        try {
+            eventos = ev.getCoalescedEvents ? ev.getCoalescedEvents() : [ev];
+        } catch (_err) {
+            eventos = [ev];
+        }
+        if (!eventos || !eventos.length) eventos = [ev];
+        for (const e of eventos) {
             const p = pos(e);
-            if (e.pointerType === "pen" && e.pressure > 0) {
+            // Algumas canetas/tablets externas não relatam pressão fiável
+            // (fica sempre 0, ou undefined) — nesse caso mantém a espessura
+            // por omissão em vez de encolher o traço a zero.
+            if (e.pointerType === "pen" && Number.isFinite(e.pressure) && e.pressure > 0) {
                 ctx.lineWidth = 1 + e.pressure * 2.4;
             }
             ctx.beginPath();
@@ -100,7 +116,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const pararDesenho = () => { aDesenhar = false; };
     canvas.addEventListener("pointerup", pararDesenho);
     canvas.addEventListener("pointercancel", pararDesenho);
-    canvas.addEventListener("pointerleave", pararDesenho);
+    // NOTA: "pointerleave" não é usado para parar o desenho — com o
+    // ponteiro capturado (setPointerCapture acima), algumas
+    // caneta/tablets ainda disparam "leave" ao levantar ligeiramente a
+    // ponta antes do "pointerup" (deteção de hover), o que cortava o
+    // traço a meio sem motivo. "pointerup"/"pointercancel" já cobrem
+    // corretamente o fim do traço.
 
     function atualizarGuardar() {
         btnGuardar.disabled = !temTraco;
