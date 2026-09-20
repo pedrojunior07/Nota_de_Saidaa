@@ -25,6 +25,7 @@ from app.forms.nota import CarregarNotaForm, DecisaoForm, NotaForm
 from app.models.configuracao import Configuracao
 from app.models.historico_entrega import HistoricoEntrega
 from app.models.nota_entrega import NotaEntrega
+from app.repositories.entrega import MongoEntregaRepository
 from app.services import campos_dinamicos_service, entrega_service
 from app.utils.assinatura import (
     guardar_dataurl_png,
@@ -54,6 +55,16 @@ def _posicao(papel):
 
 
 def _consulta_listagem():
+    """Filtro «quem pode ver o quê», na forma certa para o backend ativo:
+    uma Query SQLAlchemy normalmente, ou um dict de filtro Mongo quando
+    USE_MONGO_ENTREGA está ligado."""
+    if entrega_service._mongo_entrega_ativo():
+        if current_user.perfil == Perfil.APROVADOR.value:
+            return {"estado": {"$ne": EstadoNota.RASCUNHO.value}}
+        if current_user.is_tecnico():
+            return {"$or": [{"criado_por": current_user.id}, {"revisao_tecnico_id": current_user.id}]}
+        return {"_id": None}
+
     if current_user.perfil == Perfil.APROVADOR.value:
         # O aprovador só decide/acompanha notas já submetidas — nunca vê
         # rascunhos que o técnico ainda nem entregou para revisão.
@@ -69,7 +80,13 @@ def _consulta_listagem():
 
 
 def _obter_ou_404(nota_id):
-    nota = db.session.get(NotaEntrega, nota_id)
+    if entrega_service._mongo_entrega_ativo():
+        nota = MongoEntregaRepository().obter_por_id(nota_id)
+    else:
+        try:
+            nota = db.session.get(NotaEntrega, int(nota_id))
+        except (TypeError, ValueError):
+            nota = None
     if nota is None:
         abort(404)
     return nota
@@ -127,18 +144,32 @@ def listar():
     di = datetime.strptime(data_inicio, "%Y-%m-%d").date() if data_inicio else None
     df = datetime.strptime(data_fim, "%Y-%m-%d").date() if data_fim else None
 
-    consulta = entrega_service.pesquisar(
-        _consulta_listagem(),
-        referencia=referencia or None,
-        colaborador=colaborador or None,
-        estado=estado or None,
-        data_inicio=di,
-        data_fim=df,
-    )
-    paginacao = consulta.paginate(
-        page=pagina, per_page=current_app.config["ITEMS_PER_PAGE"], error_out=False
-    )
-    stats = entrega_service.estatisticas(_consulta_listagem())
+    if entrega_service._mongo_entrega_ativo():
+        from app.utils.pagination import SimplePagination
+
+        encontradas = entrega_service.pesquisar_mongo(
+            _consulta_listagem(),
+            referencia=referencia or None,
+            colaborador=colaborador or None,
+            estado=estado or None,
+            data_inicio=di,
+            data_fim=df,
+        )
+        paginacao = SimplePagination(encontradas, pagina, current_app.config["ITEMS_PER_PAGE"])
+        stats = entrega_service.estatisticas_mongo(_consulta_listagem())
+    else:
+        consulta = entrega_service.pesquisar(
+            _consulta_listagem(),
+            referencia=referencia or None,
+            colaborador=colaborador or None,
+            estado=estado or None,
+            data_inicio=di,
+            data_fim=df,
+        )
+        paginacao = consulta.paginate(
+            page=pagina, per_page=current_app.config["ITEMS_PER_PAGE"], error_out=False
+        )
+        stats = entrega_service.estatisticas(_consulta_listagem())
     return render_template(
         "entrega/listar.html",
         paginacao=paginacao,
@@ -238,7 +269,7 @@ def criar():
     )
 
 
-@bp.route("/<int:nota_id>/editar", methods=["GET", "POST"])
+@bp.route("/<nota_id>/editar", methods=["GET", "POST"])
 @login_required
 def editar(nota_id):
     nota = _obter_ou_404(nota_id)
@@ -315,7 +346,7 @@ def editar(nota_id):
     )
 
 
-@bp.route("/<int:nota_id>")
+@bp.route("/<nota_id>")
 @login_required
 def detalhe(nota_id):
     nota = _obter_ou_404(nota_id)
@@ -338,7 +369,7 @@ def detalhe(nota_id):
     )
 
 
-@bp.route("/<int:nota_id>/submeter", methods=["POST"])
+@bp.route("/<nota_id>/submeter", methods=["POST"])
 @login_required
 def submeter(nota_id):
     nota = _obter_ou_404(nota_id)
@@ -357,7 +388,7 @@ def submeter(nota_id):
     return redirect(url_for("entrega.detalhe", nota_id=nota.id))
 
 
-@bp.route("/<int:nota_id>/decidir", methods=["POST"])
+@bp.route("/<nota_id>/decidir", methods=["POST"])
 @login_required
 @perfis_requeridos(Perfil.APROVADOR.value)
 def decidir(nota_id):
@@ -403,7 +434,7 @@ def decidir(nota_id):
     return redirect(url_for("entrega.detalhe", nota_id=nota.id))
 
 
-@bp.route("/<int:nota_id>/assinatura/<papel>", methods=["POST"])
+@bp.route("/<nota_id>/assinatura/<papel>", methods=["POST"])
 @login_required
 def guardar_assinatura(nota_id, papel):
     nota = _obter_ou_404(nota_id)
@@ -419,7 +450,7 @@ def guardar_assinatura(nota_id, papel):
     return jsonify({"ok": True, "url": url_assinatura(fname), "estado": nota.estado})
 
 
-@bp.route("/<int:nota_id>/assinatura/<papel>/remover", methods=["POST"])
+@bp.route("/<nota_id>/assinatura/<papel>/remover", methods=["POST"])
 @login_required
 def remover_assinatura(nota_id, papel):
     nota = _obter_ou_404(nota_id)
@@ -432,7 +463,7 @@ def remover_assinatura(nota_id, papel):
     return jsonify({"ok": True})
 
 
-@bp.route("/<int:nota_id>/assinatura/<papel>/posicao", methods=["POST"])
+@bp.route("/<nota_id>/assinatura/<papel>/posicao", methods=["POST"])
 @login_required
 def atualizar_posicao_assinatura(nota_id, papel):
     nota = _obter_ou_404(nota_id)
@@ -448,7 +479,7 @@ def atualizar_posicao_assinatura(nota_id, papel):
     return jsonify({"ok": True})
 
 
-@bp.route("/<int:nota_id>/apagar", methods=["POST"])
+@bp.route("/<nota_id>/apagar", methods=["POST"])
 @login_required
 def apagar(nota_id):
     nota = _obter_ou_404(nota_id)
@@ -459,7 +490,7 @@ def apagar(nota_id):
     return redirect(url_for("entrega.listar"))
 
 
-@bp.route("/<int:nota_id>/pdf")
+@bp.route("/<nota_id>/pdf")
 @login_required
 def pdf(nota_id):
     nota = _obter_ou_404(nota_id)
@@ -511,25 +542,31 @@ def upload_minha_assinatura():
     nome_fixo = f"sig_user_{current_user.id}.png"
     if "signature" in request.files:
         fname, erro = guardar_png(request.files["signature"], nome_fixo=nome_fixo)
-        nota_id = request.form.get("nota_id", type=int)
+        nota_id = request.form.get("nota_id") or None
     else:
         dados = request.get_json(silent=True) or {}
         fname, erro = guardar_dataurl_png(dados.get("imagem"), nome_fixo)
-        nota_id = dados.get("nota_id")
-        try:
-            nota_id = int(nota_id) if nota_id else None
-        except (TypeError, ValueError):
-            nota_id = None
+        nota_id = dados.get("nota_id") or None
     if erro:
         return jsonify({"error": erro}), 400
     current_user.assinatura_path = fname
     current_user.assinatura_reutilizavel = True
     if nota_id:
-        nota = db.session.get(NotaEntrega, nota_id)
-        if nota and nota.pode_aprovar(current_user):
-            nota.assinatura_aprovador_path = fname
-        elif nota and nota.pode_editar(current_user):
-            nota.assinatura_entregue_path = fname
+        if entrega_service._mongo_entrega_ativo():
+            nota = MongoEntregaRepository().obter_por_id(nota_id)
+            if nota and nota.pode_aprovar(current_user):
+                MongoEntregaRepository().definir_assinatura(nota.id, "aprovador", path=fname)
+            elif nota and nota.pode_editar(current_user):
+                MongoEntregaRepository().definir_assinatura(nota.id, "entregue", path=fname)
+        else:
+            try:
+                nota = db.session.get(NotaEntrega, int(nota_id))
+            except (TypeError, ValueError):
+                nota = None
+            if nota and nota.pode_aprovar(current_user):
+                nota.assinatura_aprovador_path = fname
+            elif nota and nota.pode_editar(current_user):
+                nota.assinatura_entregue_path = fname
     db.session.commit()
     return jsonify({"ok": True, "filename": fname, "url": url_assinatura(fname)})
 
