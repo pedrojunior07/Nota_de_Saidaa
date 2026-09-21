@@ -123,6 +123,20 @@ def utilizador_novo():
     )
 
 
+def _atualizar_assinatura_propria(utilizador, form):
+    """A assinatura só pode ser gerida pelo próprio utilizador."""
+    from app.utils.assinatura import guardar_png
+
+    arquivo = request.files.get(form.assinatura.name)
+    if arquivo and arquivo.filename:
+        fname, erro = guardar_png(arquivo, nome_fixo=f"sig_user_{utilizador.id}.png")
+        if erro:
+            flash(erro, "warning")
+        else:
+            utilizador.assinatura_path = fname
+    utilizador.assinatura_reutilizavel = bool(form.assinatura_reutilizavel.data)
+
+
 @bp.route("/utilizadores/<int:user_id>/editar", methods=["GET", "POST"])
 @login_required
 @perfis_requeridos(Perfil.ADMINISTRADOR.value, Perfil.TECNICO_ADMIN.value)
@@ -139,20 +153,8 @@ def utilizador_editar(user_id):
         utilizador.ativo = form.ativo.data
         if modo_local and form.password.data:
             utilizador.definir_password(form.password.data)
-        # A assinatura só pode ser gerida pelo próprio utilizador.
         if utilizador.id == current_user.id:
-            from app.utils.assinatura import guardar_png
-
-            arquivo = request.files.get(form.assinatura.name)
-            if arquivo and arquivo.filename:
-                fname, erro = guardar_png(
-                    arquivo, nome_fixo=f"sig_user_{utilizador.id}.png"
-                )
-                if erro:
-                    flash(erro, "warning")
-                else:
-                    utilizador.assinatura_path = fname
-            utilizador.assinatura_reutilizavel = bool(form.assinatura_reutilizavel.data)
+            _atualizar_assinatura_propria(utilizador, form)
         db.session.commit()
         flash("Utilizador atualizado.", "success")
         return redirect(url_for("admin.utilizadores"))
