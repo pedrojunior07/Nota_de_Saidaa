@@ -19,7 +19,7 @@ services:
     networks:
       - stb-network
     depends_on:
-      - mongodb
+      - mongodb_nota_saida
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
       interval: 30s
@@ -28,14 +28,14 @@ services:
       start_period: 120s
     restart: unless-stopped
 
-  mongodb:
+  mongodb_nota_saida:
     image: nexus.standardbank.co.mz:7777/mongo:8.3
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=admin123
       - MONGO_INITDB_DATABASE=nota_saida
     ports:
-      - "27017:27017"
+      - "27018:27017"
     volumes:
       - mongo_data:/data/db
     networks:
