@@ -350,10 +350,7 @@ PAPEIS_ASSINATURA = {
 }
 
 
-def guardar_assinatura_papel(nota, papel, dataurl, utilizador, posicao=None):
-    """Grava a PNG de uma assinatura recolhida na entrega (pad / canvas)."""
-    from app.utils.assinatura import guardar_dataurl_png, remover_ficheiro
-
+def _validar_papel_assinatura(nota, papel):
     if papel not in PAPEIS_ASSINATURA:
         raise ValueError("Papel de assinatura inválido.")
     if papel == "entregue" and nota.estado not in {
@@ -365,6 +362,12 @@ def guardar_assinatura_papel(nota, papel, dataurl, utilizador, posicao=None):
     if papel == "recebido" and nota.estado != EstadoNota.APROVADA.value:
         raise ValueError("A assinatura de «Recebido» só é recolhida depois da aprovação.")
 
+
+def guardar_assinatura_papel(nota, papel, dataurl, utilizador, posicao=None):
+    """Grava a PNG de uma assinatura recolhida na entrega (pad / canvas)."""
+    from app.utils.assinatura import guardar_dataurl_png, remover_ficheiro
+
+    _validar_papel_assinatura(nota, papel)
     prefixo, rotulo = PAPEIS_ASSINATURA[papel]
 
     nome_fixo = f"sig_nota_{nota.id}_{papel}.png"
@@ -373,32 +376,20 @@ def guardar_assinatura_papel(nota, papel, dataurl, utilizador, posicao=None):
         raise ValueError(erro)
 
     anterior = getattr(nota, f"{prefixo}_path")
-
-    if isinstance(nota, _NotaMongoAdapter):
-        repo = MongoNotaRepository()
-        pos = None
-        if posicao:
-            from app.utils.assinatura_zonas import enquadrar
-            pos = enquadrar(papel, posicao)
-        repo.definir_assinatura(nota.id, papel, path=fname, posicao=pos)
-        setattr(nota, f"{prefixo}_path", fname)
-        if pos:
-            for eixo in ("x", "y", "w", "h"):
-                setattr(nota, f"{prefixo}_{eixo}", pos[eixo])
-        if anterior and anterior != fname:
-            remover_ficheiro(anterior)
-        historico_service.registrar(nota, f"Recolheu a assinatura «{rotulo}».", utilizador)
-        if papel == "recebido" and nota.estado == EstadoNota.APROVADA.value:
-            _concluir(nota, utilizador)
-        return fname
-
-    setattr(nota, f"{prefixo}_path", fname)
+    pos = None
     if posicao:
         from app.utils.assinatura_zonas import enquadrar
 
         pos = enquadrar(papel, posicao)
+
+    setattr(nota, f"{prefixo}_path", fname)
+    if pos:
         for eixo in ("x", "y", "w", "h"):
             setattr(nota, f"{prefixo}_{eixo}", pos[eixo])
+
+    mongo = isinstance(nota, _NotaMongoAdapter)
+    if mongo:
+        MongoNotaRepository().definir_assinatura(nota.id, papel, path=fname, posicao=pos)
     if anterior and anterior != fname:
         remover_ficheiro(anterior)
 
@@ -406,7 +397,8 @@ def guardar_assinatura_papel(nota, papel, dataurl, utilizador, posicao=None):
 
     if papel == "recebido" and nota.estado == EstadoNota.APROVADA.value:
         _concluir(nota, utilizador)
-    db.session.commit()
+    if not mongo:
+        db.session.commit()
     return fname
 
 
@@ -473,23 +465,8 @@ def apagar_nota(nota):
     """Apaga uma nota e apenas os ficheiros de assinatura/PDF pertencentes à nota."""
     from app.utils.assinatura import remover_ficheiro
 
-    if isinstance(nota, _NotaMongoAdapter):
-        for caminho in (getattr(nota, "pdf_path", None),):
-            if caminho:
-                remover_ficheiro(caminho)
-        for nome in (
-            nota.assinatura_entregue_path,
-            nota.assinatura_recebido_path,
-            nota.assinatura_seguranca_path,
-            nota.assinatura_aprovador_path,
-        ):
-            if nome and nome.startswith("sig_nota_"):
-                remover_ficheiro(nome)
-        return MongoNotaRepository().apagar(nota.id)
-
-    for caminho in (nota.pdf_path,):
-        if caminho:
-            remover_ficheiro(caminho)
+    if nota.pdf_path:
+        remover_ficheiro(nota.pdf_path)
     for nome in (
         nota.assinatura_entregue_path,
         nota.assinatura_recebido_path,
@@ -498,6 +475,10 @@ def apagar_nota(nota):
     ):
         if nome and nome.startswith("sig_nota_"):
             remover_ficheiro(nome)
+
+    if isinstance(nota, _NotaMongoAdapter):
+        return MongoNotaRepository().apagar(nota.id)
+
     from app.services import campos_dinamicos_service
 
     campos_dinamicos_service.apagar_valores("saida", nota.id)

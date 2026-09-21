@@ -399,9 +399,7 @@ def devolver_para_revisao(nota, utilizador, tecnico_id, motivo):
 
 # ---- assinaturas ------------------------------------------------------
 
-def guardar_assinatura_papel(nota, papel, dataurl, utilizador, posicao=None):
-    from app.utils.assinatura import guardar_dataurl_png, remover_ficheiro
-
+def _validar_papel_assinatura(nota, papel):
     if papel not in PAPEIS_ASSINATURA:
         raise ValueError("Papel de assinatura inválido.")
     if papel == "entregue" and nota.estado not in {
@@ -413,6 +411,24 @@ def guardar_assinatura_papel(nota, papel, dataurl, utilizador, posicao=None):
     if papel == "recebido" and nota.estado != EstadoNota.APROVADA.value:
         raise ValueError("A assinatura de «Recebido» só é recolhida depois da aprovação.")
 
+
+def _registar_seguranca(nota, utilizador, mongo):
+    nota.seguranca_por = utilizador.id
+    nota.data_seguranca = agora()
+    if mongo:
+        MongoEntregaRepository().definir_seguranca(
+            nota.id,
+            seguranca_por=utilizador.id,
+            seguranca_nome=utilizador.nome,
+            seguranca_username=getattr(utilizador, "username", None),
+        )
+        nota.seguranca = PessoaRefMongo(utilizador.id, getattr(utilizador, "username", None), utilizador.nome)
+
+
+def guardar_assinatura_papel(nota, papel, dataurl, utilizador, posicao=None):
+    from app.utils.assinatura import guardar_dataurl_png, remover_ficheiro
+
+    _validar_papel_assinatura(nota, papel)
     prefixo, rotulo = PAPEIS_ASSINATURA[papel]
     nome_fixo = f"sig_entrega_{nota.id}_{papel}.png"
     fname, erro = guardar_dataurl_png(dataurl, nome_fixo)
@@ -420,44 +436,27 @@ def guardar_assinatura_papel(nota, papel, dataurl, utilizador, posicao=None):
         raise ValueError(erro)
 
     anterior = getattr(nota, f"{prefixo}_path")
-
-    if isinstance(nota, _NotaEntregaMongoAdapter):
-        repo = MongoEntregaRepository()
-        pos = enquadrar(papel, posicao) if posicao else None
-        repo.definir_assinatura(nota.id, papel, path=fname, posicao=pos)
-        setattr(nota, f"{prefixo}_path", fname)
-        if pos:
-            for eixo in ("x", "y", "w", "h"):
-                setattr(nota, f"{prefixo}_{eixo}", pos[eixo])
-        if anterior and anterior != fname:
-            remover_ficheiro(anterior)
-        registrar(nota, f"Recolheu a assinatura «{rotulo}».", utilizador)
-        if papel == "seguranca":
-            repo.definir_seguranca(nota.id, seguranca_por=utilizador.id, seguranca_nome=utilizador.nome,
-                                    seguranca_username=getattr(utilizador, "username", None))
-            nota.seguranca_por = utilizador.id
-            nota.seguranca = PessoaRefMongo(utilizador.id, getattr(utilizador, "username", None), utilizador.nome)
-            nota.data_seguranca = agora()
-        if papel == "recebido" and nota.estado == EstadoNota.APROVADA.value:
-            _concluir(nota, utilizador)
-        return fname
+    pos = enquadrar(papel, posicao) if posicao else None
 
     setattr(nota, f"{prefixo}_path", fname)
-    if posicao:
-        pos = enquadrar(papel, posicao)
+    if pos:
         for eixo in ("x", "y", "w", "h"):
             setattr(nota, f"{prefixo}_{eixo}", pos[eixo])
+
+    mongo = isinstance(nota, _NotaEntregaMongoAdapter)
+    if mongo:
+        MongoEntregaRepository().definir_assinatura(nota.id, papel, path=fname, posicao=pos)
     if anterior and anterior != fname:
         remover_ficheiro(anterior)
 
     registrar(nota, f"Recolheu a assinatura «{rotulo}».", utilizador)
 
     if papel == "seguranca":
-        nota.seguranca_por = utilizador.id
-        nota.data_seguranca = agora()
+        _registar_seguranca(nota, utilizador, mongo)
     if papel == "recebido" and nota.estado == EstadoNota.APROVADA.value:
         _concluir(nota, utilizador)
-    db.session.commit()
+    if not mongo:
+        db.session.commit()
     return fname
 
 
@@ -546,19 +545,6 @@ def atualizar_posicao_assinatura(nota, papel, posicao, utilizador):
 def apagar_nota(nota):
     from app.utils.assinatura import remover_ficheiro
 
-    if isinstance(nota, _NotaEntregaMongoAdapter):
-        if nota.pdf_path:
-            remover_ficheiro(nota.pdf_path)
-        for nome in (
-            nota.assinatura_entregue_path,
-            nota.assinatura_recebido_path,
-            nota.assinatura_seguranca_path,
-            nota.assinatura_aprovador_path,
-        ):
-            if nome and nome.startswith("sig_entrega_"):
-                remover_ficheiro(nome)
-        return MongoEntregaRepository().apagar(nota.id)
-
     if nota.pdf_path:
         remover_ficheiro(nota.pdf_path)
     for nome in (
@@ -569,6 +555,10 @@ def apagar_nota(nota):
     ):
         if nome and nome.startswith("sig_entrega_"):
             remover_ficheiro(nome)
+
+    if isinstance(nota, _NotaEntregaMongoAdapter):
+        return MongoEntregaRepository().apagar(nota.id)
+
     from app.services import campos_dinamicos_service
 
     campos_dinamicos_service.apagar_valores("entrega", nota.id)
