@@ -62,6 +62,45 @@ def listar():
     return render_template("aprovacoes/listar.html", pendentes=pendentes)
 
 
+def _processar_devolver(servico, nota, form, comentario, voltar):
+    if not comentario:
+        flash("Indique o motivo da devolução para revisão.", "warning")
+        return voltar()
+    if not form.tecnico_revisao.data:
+        flash("Seleccione o técnico que deve rever a nota.", "warning")
+        return voltar()
+    try:
+        servico.devolver_para_revisao(nota, current_user, form.tecnico_revisao.data, comentario)
+    except ValueError as erro:
+        flash(str(erro), "warning")
+        return voltar()
+    flash("Nota devolvida para revisão ao técnico seleccionado.", "success")
+    return voltar()
+
+
+def _processar_rejeitar(servico, nota, comentario, voltar):
+    if not comentario:
+        flash("Indique o motivo da rejeição.", "warning")
+        return voltar()
+    servico.rejeitar_nota(nota, current_user, comentario)
+    flash("Nota rejeitada. O técnico poderá corrigir e resubmeter.", "info")
+    return voltar()
+
+
+def _processar_aprovar(servico, nota, comentario, voltar):
+    servico.aprovar_nota(
+        nota,
+        current_user,
+        comentario,
+        posicao_assinatura=ler_posicao(request.form, papel="aprovador"),
+    )
+    flash(
+        "Nota aprovada e assinada. Falta a assinatura de «Recebido» para concluir.",
+        "success",
+    )
+    return voltar()
+
+
 @bp.route("/<tipo>/<nota_id>/decidir", methods=["POST"])
 @login_required
 @perfis_requeridos(Perfil.APROVADOR.value)
@@ -90,36 +129,7 @@ def decidir(tipo, nota_id):
 
     comentario = (form.comentario.data or "").strip() or None
     if form.devolver.data:
-        if not comentario:
-            flash("Indique o motivo da devolução para revisão.", "warning")
-            return _voltar()
-        if not form.tecnico_revisao.data:
-            flash("Seleccione o técnico que deve rever a nota.", "warning")
-            return _voltar()
-        try:
-            servico.devolver_para_revisao(
-                nota, current_user, form.tecnico_revisao.data, comentario
-            )
-        except ValueError as erro:
-            flash(str(erro), "warning")
-            return _voltar()
-        flash("Nota devolvida para revisão ao técnico seleccionado.", "success")
-    elif form.rejeitar.data:
-        if not comentario:
-            flash("Indique o motivo da rejeição.", "warning")
-            return _voltar()
-        servico.rejeitar_nota(nota, current_user, comentario)
-        flash("Nota rejeitada. O técnico poderá corrigir e resubmeter.", "info")
-    else:
-        servico.aprovar_nota(
-            nota,
-            current_user,
-            comentario,
-            posicao_assinatura=ler_posicao(request.form, papel="aprovador"),
-        )
-        flash(
-            "Nota aprovada e assinada. Falta a assinatura de «Recebido» para "
-            "concluir.",
-            "success",
-        )
-    return _voltar()
+        return _processar_devolver(servico, nota, form, comentario, _voltar)
+    if form.rejeitar.data:
+        return _processar_rejeitar(servico, nota, comentario, _voltar)
+    return _processar_aprovar(servico, nota, comentario, _voltar)

@@ -12,6 +12,37 @@ class MongoConnectionError(RuntimeError):
     """Erro amigável quando o MongoDB não está acessível."""
 
 
+def _validar_obrigatorias(uri_base: str, database_name: str) -> None:
+    missing = [
+        name
+        for name, value in (("MONGO_URI", uri_base), ("MONGO_DB_NAME", database_name))
+        if not value
+    ]
+    if missing:
+        raise MongoConnectionError("Variáveis MongoDB em falta: " + ", ".join(missing))
+
+
+def _combinar_credenciais(uri_base: str, user: str, password: str) -> str:
+    """MONGO_URI vem só com o host (ex.: mongodb://mongodb:27017), sem
+    credenciais — MONGO_USER/MONGO_PASSWORD são combinadas aqui, para não
+    obrigar a embutir a password na URI à mão. Se a URI já vier com
+    credenciais (formato antigo, tudo numa linha), mantém-se como está."""
+    if not (user and password):
+        return uri_base
+
+    esquema, separador_esquema, resto = uri_base.partition("://")
+    if not separador_esquema or "@" in resto:
+        return uri_base
+
+    from urllib.parse import quote_plus
+
+    uri = f"{esquema}://{quote_plus(user)}:{quote_plus(password)}@{resto}"
+    if "authSource=" not in uri:
+        sep = "&" if "?" in uri else "?"
+        uri = f"{uri}{sep}authSource=admin"
+    return uri
+
+
 @dataclass(frozen=True)
 class MongoConfig:
     """Configuração do MongoDB carregada exclusivamente de variáveis de ambiente."""
@@ -28,33 +59,8 @@ class MongoConfig:
         password = (os.environ.get("MONGO_PASSWORD") or "").strip()
         database_name = (os.environ.get("MONGO_DB_NAME") or "").strip()
 
-        missing = [
-            name
-            for name, value in (
-                ("MONGO_URI", uri_base),
-                ("MONGO_DB_NAME", database_name),
-            )
-            if not value
-        ]
-        if missing:
-            raise MongoConnectionError(
-                "Variáveis MongoDB em falta: " + ", ".join(missing)
-            )
-
-        uri = uri_base
-        if user and password:
-            # MONGO_URI vem só com o host (ex.: mongodb://mongodb:27017), sem
-            # credenciais — MONGO_USER/MONGO_PASSWORD são combinadas aqui,
-            # para não obrigar a embutir a password na URI à mão.
-            from urllib.parse import quote_plus
-
-            esquema, separador_esquema, resto = uri_base.partition("://")
-            if separador_esquema and "@" not in resto:
-                uri = f"{esquema}://{quote_plus(user)}:{quote_plus(password)}@{resto}"
-                if "authSource=" not in uri:
-                    sep = "&" if "?" in uri else "?"
-                    uri = f"{uri}{sep}authSource=admin"
-
+        _validar_obrigatorias(uri_base, database_name)
+        uri = _combinar_credenciais(uri_base, user, password)
         return cls(uri=uri, database_name=database_name)
 
 
