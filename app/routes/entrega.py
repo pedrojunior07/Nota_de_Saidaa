@@ -41,6 +41,10 @@ from app.utils.decorators import perfis_requeridos
 bp = Blueprint("entrega", __name__, url_prefix="/entrega")
 
 
+def _voltar_a_listar():
+    return _voltar_a_listar()
+
+
 @bp.before_request
 def _bloquear_admin():
     """O Administrador gere a plataforma (utilizadores, permissões, campos) e
@@ -130,7 +134,7 @@ def _ler_respostas_campos(campos):
 def painel():
     """«Painel de Controlo» foi eliminado — os cards de resumo agora vivem no
     topo da listagem completa. Mantido como redireccionamento por compatibilidade."""
-    return redirect(url_for("entrega.listar"))
+    return _voltar_a_listar()
 
 
 @bp.route("/listar")
@@ -197,18 +201,18 @@ def carregar():
     if not form.validate_on_submit():
         primeiro_erro = next(iter(form.errors.values()), [None])[0]
         flash(primeiro_erro or "Não foi possível carregar a nota. Verifique os dados.", "danger")
-        return redirect(url_for("entrega.listar"))
+        return _voltar_a_listar()
 
     ficheiro = request.files.get(form.ficheiro.name)
     try:
         nota = entrega_service.carregar_nota(form.data, ficheiro, current_user)
     except ValueError as erro:
         flash(str(erro), "warning")
-        return redirect(url_for("entrega.listar"))
+        return _voltar_a_listar()
     except (IntegrityError, DuplicateKeyError):
         db.session.rollback()
         flash("Já existe uma nota com este número de referência Remedy.", "danger")
-        return redirect(url_for("entrega.listar"))
+        return _voltar_a_listar()
 
     flash("Nota carregada e adicionada à listagem.", "success")
     return redirect(url_for("entrega.detalhe", nota_id=nota.id))
@@ -488,7 +492,7 @@ def apagar(nota_id):
         abort(403)
     entrega_service.apagar_nota(nota)
     flash("Nota apagada com sucesso.", "success")
-    return redirect(url_for("entrega.listar"))
+    return _voltar_a_listar()
 
 
 @bp.route("/<nota_id>/pdf")

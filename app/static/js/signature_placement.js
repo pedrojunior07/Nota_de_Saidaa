@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // A assinatura «Entregue Por» só pode ocupar a sua área do documento.
     const PAPEL = "entregue";
-    const Zonas = window.SignatureZones;
+    const Zonas = globalThis.SignatureZones;
     const limitesZona = () => Zonas
         ? Zonas.limitesPx(PAPEL, folha.getBoundingClientRect())
         : (() => {
@@ -95,12 +95,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     const res = await fetch(meta.deleteUrl, { method: "POST", headers: { "X-CSRFToken": csrf }, body: dados });
                     const json = await res.json();
                     if (!res.ok || !json.ok) {
-                        window.showToast?.(json.error || "Não foi possível eliminar a assinatura.", "danger");
+                        globalThis.showToast?.(json.error || "Não foi possível eliminar a assinatura.", "danger");
                         return;
                     }
                     atualizarSlot(null);
-                } catch (_err) {
-                    window.showToast?.("Falha de rede ao eliminar a assinatura.", "danger");
+                } catch (error_) {
+                    console.error(error_);
+                    globalThis.showToast?.("Falha de rede ao eliminar a assinatura.", "danger");
                 }
             };
             confirmCancel.focus();
@@ -113,7 +114,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     btnDesenhar?.addEventListener("click", () => {
         if (assinaturaUrl) return;
-        window.SignatureCanvasModal?.abrir({
+        globalThis.SignatureCanvasModal?.abrir({
             titulo: "Desenhar assinatura",
             ajuda: "Assine no retângulo acima. Fica guardada no seu perfil para reutilizar noutras notas.",
             aoGuardar: async (imagem) => {
@@ -125,13 +126,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
                     const json = await res.json().catch(() => ({}));
                     if (!res.ok || !json.ok) {
-                        window.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
+                        globalThis.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
                         return;
                     }
                     atualizarSlot(json.url);
-                    window.showToast?.("Assinatura guardada.", "success");
-                } catch (_err) {
-                    window.showToast?.("Falha de rede ao guardar a assinatura.", "danger");
+                    globalThis.showToast?.("Assinatura guardada.", "success");
+                } catch (error_) {
+                    console.error(error_);
+                    globalThis.showToast?.("Falha de rede ao guardar a assinatura.", "danger");
                 }
             },
         });
@@ -169,7 +171,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             atualizarSlot(json.url);
-        } catch (_err) {
+        } catch (error_) {
+            console.error(error_);
             alert("Falha de rede ao guardar a assinatura.");
         }
     });
@@ -312,8 +315,8 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!modo) return;
             modo = null;
             gravarPos(box);
-            window.removeEventListener("pointermove", onMove);
-            window.removeEventListener("pointerup", onUp);
+            globalThis.removeEventListener("pointermove", onMove);
+            globalThis.removeEventListener("pointerup", onUp);
         };
 
         box.addEventListener("pointerdown", (ev) => {
@@ -330,8 +333,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 height: b.height,
             };
             box.setPointerCapture(ev.pointerId);
-            window.addEventListener("pointermove", onMove);
-            window.addEventListener("pointerup", onUp);
+            globalThis.addEventListener("pointermove", onMove);
+            globalThis.addEventListener("pointerup", onUp);
             ev.preventDefault();
         });
 
@@ -398,7 +401,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     btnConfirmar?.addEventListener("click", () => {
         if (!assinaturaUrl) {
-            window.showToast?.("Carregue a sua assinatura PNG antes de confirmar.", "danger");
+            globalThis.showToast?.("Carregue a sua assinatura PNG antes de confirmar.", "danger");
             inputFile?.click();
             return;
         }

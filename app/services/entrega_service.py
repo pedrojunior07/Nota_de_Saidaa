@@ -23,7 +23,9 @@ from app.models.historico_entrega import HistoricoEntrega
 from app.models.item_entrega import ItemEntrega
 from app.models.nota_entrega import NotaEntrega
 from app.models.user import User
-from app.repositories.entrega import MongoEntregaRepository, _NotaEntregaMongoAdapter, _PessoaRefMongoEntrega
+from app.repositories.mongo_common import LOCAL_EMISSAO_OMISSAO, ORIGEM_LOCAL_OMISSAO
+from app.repositories.entrega import MongoEntregaRepository, _NotaEntregaMongoAdapter
+from app.repositories.mongo_common import PessoaRefMongo
 from app.services.entrega_pdf import gerar_pdf_entrega
 from app.utils.assinatura_zonas import enquadrar as _enquadrar
 from app.utils.constants import ESTADOS_LABEL, EstadoNota, Perfil
@@ -123,7 +125,7 @@ def _aplicar_dados(nota, dados):
     nota.departamento = dados["departamento"].strip()
     nota.motivo = dados["motivo"]
     nota.observacao = (dados.get("observacao") or "").strip() or None
-    nota.origem_local = (dados.get("origem_local") or "Sede IT").strip()
+    nota.origem_local = (dados.get("origem_local") or ORIGEM_LOCAL_OMISSAO).strip()
     nota.local_emissao = (dados.get("local_emissao") or "Maputo").strip()
 
 
@@ -159,18 +161,20 @@ def carregar_nota(dados, ficheiro, utilizador):
     if _mongo_entrega_ativo():
         repo = MongoEntregaRepository()
         nota = repo.criar(
-            numero_referencia=dados["numero_referencia"].strip(),
-            data_emissao=dados["data_emissao"],
-            funcionario=dados["funcionario"].strip(),
-            email_funcionario=dados["email_funcionario"].strip().lower(),
-            departamento="N/A",
-            motivo="Nota carregada manualmente",
-            origem_local=(dados.get("origem_local") or "Sede IT").strip(),
-            local_emissao="Maputo",
-            estado=dados["estado"],
+            {
+                "numero_referencia": dados["numero_referencia"],
+                "data_emissao": dados["data_emissao"],
+                "funcionario": dados["funcionario"],
+                "email_funcionario": dados["email_funcionario"],
+                "departamento": "N/A",
+                "motivo": "Nota carregada manualmente",
+                "origem_local": dados.get("origem_local"),
+                "local_emissao": LOCAL_EMISSAO_OMISSAO,
+            },
             criado_por=utilizador.id,
             criador_nome=utilizador.nome,
             criador_username=getattr(utilizador, "username", None),
+            estado=dados["estado"],
         )
         repo.definir_pdf(nota.id, caminho_pdf, carregado=True)
         if dados["estado"] == EstadoNota.CONCLUIDA.value:
@@ -186,7 +190,7 @@ def carregar_nota(dados, ficheiro, utilizador):
         email_funcionario=dados["email_funcionario"].strip().lower(),
         departamento="N/A",
         motivo="Nota carregada manualmente",
-        origem_local=(dados.get("origem_local") or "Sede IT").strip(),
+        origem_local=(dados.get("origem_local") or ORIGEM_LOCAL_OMISSAO).strip(),
         local_emissao="Maputo",
         estado=dados["estado"],
         criado_por=utilizador.id,
@@ -209,15 +213,7 @@ def criar_nota(dados, itens, utilizador, posicao_assinatura=None):
     if _mongo_entrega_ativo():
         repo = MongoEntregaRepository()
         nota = repo.criar(
-            numero_referencia=dados["numero_referencia"].strip(),
-            data_emissao=dados["data_emissao"],
-            funcionario=dados["funcionario"].strip(),
-            email_funcionario=dados["email_funcionario"].strip().lower(),
-            departamento=dados["departamento"].strip(),
-            motivo=dados["motivo"],
-            observacao=(dados.get("observacao") or "").strip() or None,
-            origem_local=(dados.get("origem_local") or "Sede IT").strip(),
-            local_emissao=(dados.get("local_emissao") or "Maputo").strip(),
+            dados,
             criado_por=utilizador.id,
             criador_nome=utilizador.nome,
             criador_username=getattr(utilizador, "username", None),
@@ -237,7 +233,7 @@ def criar_nota(dados, itens, utilizador, posicao_assinatura=None):
         departamento=dados["departamento"].strip(),
         motivo=dados["motivo"],
         observacao=(dados.get("observacao") or "").strip() or None,
-        origem_local=(dados.get("origem_local") or "Sede IT").strip(),
+        origem_local=(dados.get("origem_local") or ORIGEM_LOCAL_OMISSAO).strip(),
         local_emissao=(dados.get("local_emissao") or "Maputo").strip(),
         estado=EstadoNota.RASCUNHO.value,
         criado_por=utilizador.id,
@@ -254,19 +250,7 @@ def criar_nota(dados, itens, utilizador, posicao_assinatura=None):
 def atualizar_nota(nota, dados, itens, utilizador, submeter=False, posicao_assinatura=None):
     if isinstance(nota, _NotaEntregaMongoAdapter):
         repo = MongoEntregaRepository()
-        repo.atualizar_dados(
-            nota.id,
-            numero_referencia=dados["numero_referencia"],
-            data_emissao=dados["data_emissao"],
-            funcionario=dados["funcionario"],
-            email_funcionario=dados["email_funcionario"],
-            departamento=dados["departamento"],
-            motivo=dados["motivo"],
-            observacao=dados.get("observacao"),
-            origem_local=dados.get("origem_local"),
-            local_emissao=dados.get("local_emissao"),
-            itens=itens,
-        )
+        repo.atualizar_dados(nota.id, dados, itens=itens)
         _aplicar_assinatura_entregue_mongo(repo, nota, utilizador, posicao_assinatura)
         registrar(nota, "Atualizou os dados da nota.", utilizador)
         if submeter:
@@ -328,7 +312,7 @@ def aprovar_nota(nota, utilizador, comentario=None, posicao_assinatura=None):
         repo.aprovar(nota.id, aprovado_por=utilizador.id, comentario=comentario,
                      aprovador_nome=utilizador.nome, aprovador_username=getattr(utilizador, "username", None))
         nota.aprovado_por = utilizador.id
-        nota.aprovador = _PessoaRefMongoEntrega(utilizador.id, getattr(utilizador, "username", None), utilizador.nome)
+        nota.aprovador = PessoaRefMongo(utilizador.id, getattr(utilizador, "username", None), utilizador.nome)
         nota.data_aprovacao = agora()
         nota.comentario_decisao = comentario or None
         nota.estado = EstadoNota.APROVADA.value
@@ -367,7 +351,7 @@ def rejeitar_nota(nota, utilizador, comentario=None):
                                            aprovador_nome=utilizador.nome, aprovador_username=getattr(utilizador, "username", None))
         nota.estado = EstadoNota.REJEITADA.value
         nota.aprovado_por = utilizador.id
-        nota.aprovador = _PessoaRefMongoEntrega(utilizador.id, getattr(utilizador, "username", None), utilizador.nome)
+        nota.aprovador = PessoaRefMongo(utilizador.id, getattr(utilizador, "username", None), utilizador.nome)
         nota.data_aprovacao = agora()
         nota.comentario_decisao = comentario or None
         registrar(nota, acao, utilizador)
@@ -390,10 +374,10 @@ def devolver_para_revisao(nota, utilizador, tecnico_id, motivo):
                                                          tecnico_nome=tecnico.nome, tecnico_username=getattr(tecnico, "username", None))
         nota.estado = EstadoNota.EM_REVISAO.value
         nota.revisao_tecnico_id = tecnico.id
-        nota.revisao_tecnico = _PessoaRefMongoEntrega(tecnico.id, getattr(tecnico, "username", None), tecnico.nome)
+        nota.revisao_tecnico = PessoaRefMongo(tecnico.id, getattr(tecnico, "username", None), tecnico.nome)
         nota.comentario_decisao = motivo
         nota.aprovado_por = None
-        nota.aprovador = _PessoaRefMongoEntrega()
+        nota.aprovador = PessoaRefMongo()
         nota.data_aprovacao = None
         nota.assinatura_aprovador_path = None
         for eixo in ("x", "y", "w", "h"):
@@ -452,7 +436,7 @@ def guardar_assinatura_papel(nota, papel, dataurl, utilizador, posicao=None):
             repo.definir_seguranca(nota.id, seguranca_por=utilizador.id, seguranca_nome=utilizador.nome,
                                     seguranca_username=getattr(utilizador, "username", None))
             nota.seguranca_por = utilizador.id
-            nota.seguranca = _PessoaRefMongoEntrega(utilizador.id, getattr(utilizador, "username", None), utilizador.nome)
+            nota.seguranca = PessoaRefMongo(utilizador.id, getattr(utilizador, "username", None), utilizador.nome)
             nota.data_seguranca = agora()
         if papel == "recebido" and nota.estado == EstadoNota.APROVADA.value:
             _concluir(nota, utilizador)
@@ -512,7 +496,7 @@ def remover_assinatura_papel(nota, papel, utilizador):
             remover_ficheiro(anterior)
         if papel == "seguranca":
             nota.seguranca_por = None
-            nota.seguranca = _PessoaRefMongoEntrega()
+            nota.seguranca = PessoaRefMongo()
             nota.data_seguranca = None
         registrar(nota, f"Removeu a assinatura «{rotulo}».", utilizador)
         return

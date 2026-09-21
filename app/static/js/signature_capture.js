@@ -15,9 +15,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const URL_BASE = painel.dataset.urlBase.replace(/\/$/, "");
     // Mapa das áreas de assinatura (signature_zones.js). Cada assinatura só
     // pode ser posicionada dentro da sua própria célula do documento.
-    const Zonas = (window.SignatureZones && window.SignatureZones.forTipo)
-        ? window.SignatureZones.forTipo(painel.dataset.tipo || "saida")
-        : window.SignatureZones;
+    const Zonas = globalThis.SignatureZones?.forTipo
+        ? globalThis.SignatureZones.forTipo(painel.dataset.tipo || "saida")
+        : globalThis.SignatureZones;
     const csrf =
         document.querySelector('meta[name="csrf-token"]')?.content ||
         painel.querySelector('input[name="csrf_token"]')?.value ||
@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // ---- abrir o modal de desenho para um papel desta nota -------------
     function abrirRecolher(papel, rotulo) {
-        window.SignatureCanvasModal?.abrir({
+        globalThis.SignatureCanvasModal?.abrir({
             titulo: `Recolher assinatura — ${rotulo}`,
             ajuda: "Assine no retângulo acima.",
             aoGuardar: (imagem) => {
@@ -47,11 +47,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 pedir(`${URL_BASE}/assinatura/${papel}`, { imagem }).then(({ ok, json }) => {
                     if (!ok) {
-                        window.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
+                        globalThis.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
                         return;
                     }
                     atualizarLinha(papel, json.url);
-                    window.showToast?.("Assinatura guardada.", "success");
+                    globalThis.showToast?.("Assinatura guardada.", "success");
                 });
             },
         });
@@ -173,8 +173,8 @@ document.addEventListener("DOMContentLoaded", () => {
         };
         const parar = () => {
             modo = null;
-            window.removeEventListener("pointermove", mover);
-            window.removeEventListener("pointerup", parar);
+            globalThis.removeEventListener("pointermove", mover);
+            globalThis.removeEventListener("pointerup", parar);
         };
         box.addEventListener("pointerdown", (ev) => {
             const folha = box.parentElement.getBoundingClientRect();
@@ -182,8 +182,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const handle = ev.target.closest(".sig-handle");
             modo = handle ? handle.dataset.handle : "move";
             inicio = { x: ev.clientX, y: ev.clientY, left: rect.left - folha.left, top: rect.top - folha.top, width: rect.width, height: rect.height };
-            window.addEventListener("pointermove", mover);
-            window.addEventListener("pointerup", parar);
+            globalThis.addEventListener("pointermove", mover);
+            globalThis.addEventListener("pointerup", parar);
             ev.preventDefault();
         });
     }
@@ -223,7 +223,7 @@ document.addEventListener("DOMContentLoaded", () => {
             : `${URL_BASE}/assinatura/${papel}`;
         const { ok, json } = await pedir(destino, corpo);
         if (!ok) {
-            window.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
+            globalThis.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
             return;
         }
         if (json.url) atualizarLinha(papel, json.url);
@@ -234,11 +234,11 @@ document.addEventListener("DOMContentLoaded", () => {
             linha.dataset.posW = String(posicaoPendente.w);
             linha.dataset.posH = String(posicaoPendente.h);
         }
-        window.showToast?.("Assinatura guardada e posicionada.", "success");
+        globalThis.showToast?.("Assinatura guardada e posicionada.", "success");
         fecharPosicionador();
         // Na Nota de Entrega, a assinatura do Segurança conclui a nota.
         if (json.estado === "concluida") {
-            setTimeout(() => window.location.reload(), 700);
+            setTimeout(() => globalThis.location.reload(), 700);
             return;
         }
     });
@@ -277,26 +277,26 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             const json = await resposta.json().catch(() => ({}));
             if (!resposta.ok || !json.ok) {
-                window.showToast?.(json.error || "Não foi possível carregar a assinatura.", "danger");
+                globalThis.showToast?.(json.error || "Não foi possível carregar a assinatura.", "danger");
                 return;
             }
             aplicarAssinaturaReutilizavelGuardada(json.url);
-            window.showToast?.("Assinatura reutilizável guardada.", "success");
+            globalThis.showToast?.("Assinatura reutilizável guardada.", "success");
         });
     }
 
     function desenharAssinaturaReutilizavel() {
-        window.SignatureCanvasModal?.abrir({
+        globalThis.SignatureCanvasModal?.abrir({
             titulo: "Desenhar assinatura",
             ajuda: "Assine no retângulo acima. Fica guardada no seu perfil para reutilizar noutras notas.",
             aoGuardar: async (imagem) => {
                 const { ok, json } = await pedir(painel.dataset.uploadUrl, { imagem, nota_id: NOTA_ID });
                 if (!ok) {
-                    window.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
+                    globalThis.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
                     return;
                 }
                 aplicarAssinaturaReutilizavelGuardada(json.url);
-                window.showToast?.("Assinatura reutilizável guardada.", "success");
+                globalThis.showToast?.("Assinatura reutilizável guardada.", "success");
             },
         });
     }
@@ -308,11 +308,11 @@ document.addEventListener("DOMContentLoaded", () => {
     async function remover(papel) {
         const { ok, json } = await pedir(`${URL_BASE}/assinatura/${papel}/remover`);
         if (!ok) {
-            window.showToast?.(json.error || "Não foi possível remover.", "danger");
+            globalThis.showToast?.(json.error || "Não foi possível remover.", "danger");
             return;
         }
         atualizarLinha(papel, null);
-        window.showToast?.("Assinatura removida.", "info");
+        globalThis.showToast?.("Assinatura removida.", "info");
     }
 
     function atualizarLinha(papel, url) {

@@ -56,13 +56,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
                     const json = await res.json().catch(() => ({}));
                     if (!res.ok || !json.ok) {
-                        window.showToast?.(json.error || "Não foi possível eliminar a assinatura.", "danger");
+                        globalThis.showToast?.(json.error || "Não foi possível eliminar a assinatura.", "danger");
                         return;
                     }
                     atualizarSlot(null);
-                    window.showToast?.("Assinatura eliminada.", "info");
-                } catch (_err) {
-                    window.showToast?.("Falha de rede ao eliminar a assinatura.", "danger");
+                    globalThis.showToast?.("Assinatura eliminada.", "info");
+                } catch (error_) {
+                    console.error(error_);
+                    globalThis.showToast?.("Falha de rede ao eliminar a assinatura.", "danger");
                 }
             };
             confirmCancel.focus();
@@ -77,7 +78,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     btnDesenhar?.addEventListener("click", () => {
         if (assinaturaUrl) return;
-        window.SignatureCanvasModal?.abrir({
+        globalThis.SignatureCanvasModal?.abrir({
             titulo: "Desenhar assinatura",
             ajuda: "Assine no retângulo acima. Fica guardada no seu perfil para reutilizar noutras notas.",
             aoGuardar: async (imagem) => {
@@ -89,13 +90,14 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
                     const json = await res.json().catch(() => ({}));
                     if (!res.ok || !json.ok) {
-                        window.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
+                        globalThis.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
                         return;
                     }
                     atualizarSlot(`${json.url}?t=${Date.now()}`);
-                    window.showToast?.("Assinatura guardada.", "success");
-                } catch (_err) {
-                    window.showToast?.("Falha de rede ao guardar a assinatura.", "danger");
+                    globalThis.showToast?.("Assinatura guardada.", "success");
+                } catch (error_) {
+                    console.error(error_);
+                    globalThis.showToast?.("Falha de rede ao guardar a assinatura.", "danger");
                 }
             },
         });
@@ -105,12 +107,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const ficheiro = inputFile.files?.[0];
         if (!ficheiro) return;
         if (assinaturaUrl) {
-            window.showToast?.("Já existe uma assinatura neste perfil. Elimine-a para carregar outra.", "warning");
+            globalThis.showToast?.("Já existe uma assinatura neste perfil. Elimine-a para carregar outra.", "warning");
             inputFile.value = "";
             return;
         }
         if (ficheiro.type !== "image/png") {
-            window.showToast?.("A assinatura deve ser um ficheiro PNG.", "warning");
+            globalThis.showToast?.("A assinatura deve ser um ficheiro PNG.", "warning");
             inputFile.value = "";
             return;
         }
@@ -124,14 +126,15 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             const json = await res.json().catch(() => ({}));
             if (!res.ok || !json.ok) {
-                window.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
+                globalThis.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
                 inputFile.value = "";
                 return;
             }
             atualizarSlot(`${json.url}?t=${Date.now()}`);
-            window.showToast?.("Assinatura guardada.", "success");
-        } catch (_err) {
-            window.showToast?.("Falha de rede ao guardar a assinatura.", "danger");
+            globalThis.showToast?.("Assinatura guardada.", "success");
+        } catch (error_) {
+            console.error(error_);
+            globalThis.showToast?.("Falha de rede ao guardar a assinatura.", "danger");
             inputFile.value = "";
         }
     });

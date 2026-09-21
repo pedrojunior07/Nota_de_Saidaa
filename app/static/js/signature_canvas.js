@@ -5,7 +5,7 @@
  * um ponto (rubrica curta); arrastar desenha um traço contínuo.
  *
  * Este módulo é o único dono do <dialog id="sigCaptura">: expõe
- * window.SignatureCanvasModal.abrir({ titulo, ajuda, aoGuardar }) para
+ * globalThis.SignatureCanvasModal.abrir({ titulo, ajuda, aoGuardar }) para
  * quem precisar de recolher uma assinatura desenhada, devolvendo sempre
  * um PNG (data URL) através do callback aoGuardar. Quem chama decide o
  * que fazer com esse PNG (posicionar sobre o documento, enviar para o
@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let aoGuardarAtual = null;
 
     function prepararCanvas() {
-        const escala = window.devicePixelRatio || 1;
+        const escala = globalThis.devicePixelRatio || 1;
         const largura = canvas.clientWidth || 640;
         const altura = canvas.clientHeight || 240;
         canvas.width = largura * escala;
@@ -71,7 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // impedir o desenho de continuar a funcionar.
         try {
             canvas.setPointerCapture(ev.pointerId);
-        } catch (_err) { /* ignorar — segue sem captura */ }
+        } catch (error_) { console.debug(error_); /* ignorar — segue sem captura */ }
         // Desenha logo um ponto no local do toque/clique. Sem isto, um
         // clique sem arrastar (assinatura em forma de ponto/rubrica curta)
         // não desenhava nada e o botão "Guardar" ficava desativado, porque
@@ -92,7 +92,8 @@ document.addEventListener("DOMContentLoaded", () => {
         let eventos;
         try {
             eventos = ev.getCoalescedEvents ? ev.getCoalescedEvents() : [ev];
-        } catch (_err) {
+        } catch (error_) {
+            console.error(error_);
             eventos = [ev];
         }
         if (!eventos || !eventos.length) eventos = [ev];
@@ -157,9 +158,9 @@ document.addEventListener("DOMContentLoaded", () => {
         fechar();
         callback?.(imagem);
     });
-    window.addEventListener("keydown", (ev) => {
+    globalThis.addEventListener("keydown", (ev) => {
         if (ev.key === "Escape" && modal.open) fechar();
     });
 
-    window.SignatureCanvasModal = { abrir, fechar };
+    globalThis.SignatureCanvasModal = { abrir, fechar };
 });
