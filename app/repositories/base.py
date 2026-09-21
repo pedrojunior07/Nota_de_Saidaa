@@ -50,19 +50,18 @@ def ensure_indexes() -> None:
 
     db.modulos.create_index("ordem", name="ix_modulos_ordem")
 
-    db.notas_saida.create_index(
-        "numero_referencia", unique=True, name="ux_notas_numero_referencia"
-    )
-    db.notas_saida.create_index("estado", name="ix_notas_estado")
-    db.notas_saida.create_index(
-        [("ano", ASCENDING), ("numero_sequencial", ASCENDING)],
-        unique=True,
-        name="ux_notas_ano_numero",
-    )
-    db.notas_saida.create_index(
-        "destinatario.email", name="ix_notas_destinatario_email"
-    )
-    db.notas_saida.create_index("criado_por.user_id", name="ix_notas_criado_por")
-    db.notas_saida.create_index(
-        [("datas.criacao", DESCENDING)], name="ix_notas_data_criacao"
-    )
+    for colecao in ("notas_saida", "notas_entrega"):
+        col = db[colecao]
+        col.create_index(
+            "numero_referencia", unique=True, name="ux_numero_referencia"
+        )
+        col.create_index("estado", name="ix_estado")
+        col.create_index(
+            [("ano", ASCENDING), ("numero_sequencial", ASCENDING)],
+            unique=True,
+            name="ux_ano_numero",
+        )
+        col.create_index("email_funcionario", name="ix_email_funcionario")
+        col.create_index("criado_por", name="ix_criado_por")
+        col.create_index("revisao_tecnico_id", name="ix_revisao_tecnico_id")
+        col.create_index([("data_criacao", DESCENDING)], name="ix_data_criacao")
