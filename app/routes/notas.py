@@ -485,6 +485,39 @@ def servir_assinatura(filename):
     return send_from_directory(pasta, nome)
 
 
+def _obter_nota_para_auto_assinatura(nota_id):
+    if nota_service._mongo_notas_ativo():
+        return MongoNotaRepository().obter_por_id(nota_id)
+    try:
+        return db.session.get(NotaSaida, int(nota_id))
+    except (TypeError, ValueError):
+        return None
+
+
+def _definir_assinatura_auto(nota_id, fname):
+    """Ao guardar/apagar a assinatura reutilizável, aplica o mesmo path (ou
+    limpa, se fname for None) no papel certo (aprovador/entregue) da nota
+    indicada — só se o utilizador tiver permissão para esse papel."""
+    if not nota_id:
+        return
+    nota = _obter_nota_para_auto_assinatura(nota_id)
+    if not nota:
+        return
+    if nota.pode_aprovar(current_user):
+        papel = "aprovador"
+    elif nota.pode_editar(current_user):
+        papel = "entregue"
+    else:
+        return
+    if nota_service._mongo_notas_ativo():
+        if fname:
+            MongoNotaRepository().definir_assinatura(nota.id, papel, path=fname)
+        else:
+            MongoNotaRepository().definir_assinatura(nota.id, papel, limpar=True)
+    else:
+        setattr(nota, f"assinatura_{papel}_path", fname)
+
+
 @bp.route("/minha-assinatura", methods=["POST"])
 @login_required
 @perfis_requeridos(Perfil.TECNICO.value, Perfil.APROVADOR.value, Perfil.TECNICO_ADMIN.value)
@@ -511,24 +544,7 @@ def upload_minha_assinatura():
         return jsonify({"error": erro}), 400
     current_user.assinatura_path = fname
     current_user.assinatura_reutilizavel = True
-    if nota_id:
-        if nota_service._mongo_notas_ativo():
-            nota = MongoNotaRepository().obter_por_id(nota_id)
-            if nota:
-                if nota.pode_aprovar(current_user):
-                    MongoNotaRepository().definir_assinatura(nota.id, "aprovador", path=fname)
-                elif nota.pode_editar(current_user):
-                    MongoNotaRepository().definir_assinatura(nota.id, "entregue", path=fname)
-        else:
-            try:
-                nota = db.session.get(NotaSaida, int(nota_id))
-            except (TypeError, ValueError):
-                nota = None
-            if nota:
-                if nota.pode_aprovar(current_user):
-                    nota.assinatura_aprovador_path = fname
-                elif nota.pode_editar(current_user):
-                    nota.assinatura_entregue_path = fname
+    _definir_assinatura_auto(nota_id, fname)
     db.session.commit()
     return jsonify({"ok": True, "filename": fname, "url": url_assinatura(fname)})
 
@@ -543,25 +559,7 @@ def apagar_minha_assinatura():
     anterior = current_user.assinatura_path
     current_user.assinatura_path = None
     current_user.assinatura_reutilizavel = False
-    nota_id = request.form.get("nota_id") or None
-    if nota_id:
-        if nota_service._mongo_notas_ativo():
-            nota = MongoNotaRepository().obter_por_id(nota_id)
-            if nota:
-                if nota.pode_aprovar(current_user):
-                    MongoNotaRepository().definir_assinatura(nota.id, "aprovador", limpar=True)
-                elif nota.pode_editar(current_user):
-                    MongoNotaRepository().definir_assinatura(nota.id, "entregue", limpar=True)
-        else:
-            try:
-                nota = db.session.get(NotaSaida, int(nota_id))
-            except (TypeError, ValueError):
-                nota = None
-            if nota:
-                if nota.pode_aprovar(current_user):
-                    nota.assinatura_aprovador_path = None
-                elif nota.pode_editar(current_user):
-                    nota.assinatura_entregue_path = None
+    _definir_assinatura_auto(request.form.get("nota_id") or None, None)
     db.session.commit()
     if anterior:
         remover_ficheiro(anterior)
