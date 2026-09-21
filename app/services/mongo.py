@@ -23,13 +23,15 @@ class MongoConfig:
     def from_env(cls):
         load_dotenv()
 
-        uri = (os.environ.get("MONGO_URI") or "").strip()
+        uri_base = (os.environ.get("MONGO_URI") or "").strip()
+        user = (os.environ.get("MONGO_USER") or "").strip()
+        password = (os.environ.get("MONGO_PASSWORD") or "").strip()
         database_name = (os.environ.get("MONGO_DB_NAME") or "").strip()
 
         missing = [
             name
             for name, value in (
-                ("MONGO_URI", uri),
+                ("MONGO_URI", uri_base),
                 ("MONGO_DB_NAME", database_name),
             )
             if not value
@@ -38,6 +40,20 @@ class MongoConfig:
             raise MongoConnectionError(
                 "Variáveis MongoDB em falta: " + ", ".join(missing)
             )
+
+        uri = uri_base
+        if user and password:
+            # MONGO_URI vem só com o host (ex.: mongodb://mongodb:27017), sem
+            # credenciais — MONGO_USER/MONGO_PASSWORD são combinadas aqui,
+            # para não obrigar a embutir a password na URI à mão.
+            from urllib.parse import quote_plus
+
+            esquema, separador_esquema, resto = uri_base.partition("://")
+            if separador_esquema and "@" not in resto:
+                uri = f"{esquema}://{quote_plus(user)}:{quote_plus(password)}@{resto}"
+                if "authSource=" not in uri:
+                    sep = "&" if "?" in uri else "?"
+                    uri = f"{uri}{sep}authSource=admin"
 
         return cls(uri=uri, database_name=database_name)
 
