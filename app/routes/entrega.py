@@ -18,6 +18,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 from sqlalchemy import false, or_
+from pymongo.errors import DuplicateKeyError
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
@@ -204,7 +205,7 @@ def carregar():
     except ValueError as erro:
         flash(str(erro), "warning")
         return redirect(url_for("entrega.listar"))
-    except IntegrityError:
+    except (IntegrityError, DuplicateKeyError):
         db.session.rollback()
         flash("Já existe uma nota com este número de referência Remedy.", "danger")
         return redirect(url_for("entrega.listar"))
@@ -253,7 +254,7 @@ def criar():
                 else:
                     flash("Rascunho guardado com sucesso.", "success")
                 return redirect(url_for("entrega.detalhe", nota_id=nota.id))
-            except IntegrityError:
+            except (IntegrityError, DuplicateKeyError):
                 db.session.rollback()
                 flash("Já existe uma nota de entrega com este número Remedy.", "danger")
 
@@ -329,7 +330,7 @@ def editar(nota_id):
                 else:
                     flash("Nota atualizada.", "success")
                 return redirect(url_for("entrega.detalhe", nota_id=nota.id))
-            except IntegrityError:
+            except (IntegrityError, DuplicateKeyError):
                 db.session.rollback()
                 flash("Já existe uma nota de entrega com este número Remedy.", "danger")
 
