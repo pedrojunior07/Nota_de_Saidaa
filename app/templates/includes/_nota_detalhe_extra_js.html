@@ -15,5 +15,6 @@
     "deleteUrl": url_for(request.blueprint ~ ".apagar_minha_assinatura"),
     "assinaturaUrl": url_assinatura(current_user.assinatura_path)
 } | tojson }}</script>
+<script src="{{ asset('js/signature_perfil_manager.js') }}"></script>
 <script src="{{ asset('js/signature_aprovacao.js') }}"></script>
 {% endif %}

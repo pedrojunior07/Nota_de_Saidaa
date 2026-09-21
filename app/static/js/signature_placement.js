@@ -1,10 +1,14 @@
+/* Posicionamento e confirmação da assinatura «Entregue Por» sobre uma
+ * pré-visualização do documento (construída aqui a partir dos valores do
+ * formulário, já que a nota ainda não existe neste ecrã). O bloco "Minha
+ * assinatura" (desenhar/carregar/apagar) vive em
+ * signature_perfil_manager.js, partilhado com signature_aprovacao.js e
+ * signature_profile.js — aqui só fica o que é próprio deste ecrã.
+ */
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("formNota");
     const metaEl = document.getElementById("notaPreviewMeta");
-    const inputFile = document.getElementById("inputAssinatura");
     const btnUpload = document.getElementById("btnUploadAssinatura");
-    const btnDesenhar = document.getElementById("btnDesenharAssinatura");
-    const slot = document.getElementById("sigSlot");
     const preview = document.getElementById("sigPreview");
     const folha = document.getElementById("sigFolha");
     const hint = document.getElementById("sigHint");
@@ -18,7 +22,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!form || !metaEl) return;
     const meta = JSON.parse(metaEl.textContent);
-    let assinaturaUrl = meta.assinaturaUrl;
+    const gestor = globalThis.GestorAssinaturaPerfil.criar({ meta, csrf, incluirNotaId: true });
+
     let hintTimer = null;
     let confirmarSubmissao = false;
 
@@ -57,125 +62,6 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("assinatura_w").value = pos.w.toFixed(2);
         document.getElementById("assinatura_h").value = pos.h.toFixed(2);
     };
-
-    const atualizarSlot = (url) => {
-        assinaturaUrl = url || null;
-        const wrap = document.getElementById("sigThumbWrap");
-        if (url) {
-            slot?.classList.add("has-signature");
-            wrap.innerHTML = `
-                <img src="${url}" alt="Minha assinatura" class="sig-thumb">
-                <button type="button" class="sig-delete-btn" id="btnApagarAssinatura" title="Eliminar assinatura" aria-label="Eliminar assinatura">
-                    <i class="bi bi-trash"></i>
-                </button>`;
-            ligarApagar();
-        } else {
-            slot?.classList.remove("has-signature");
-            wrap.innerHTML = "";
-            if (inputFile) inputFile.value = "";
-        }
-    };
-
-    const ligarApagar = () => {
-        document.getElementById("btnApagarAssinatura")?.addEventListener("click", () => {
-            const confirmModal = document.getElementById("confirmModal");
-            const confirmMessage = document.getElementById("confirmModalMessage");
-            const confirmAccept = document.getElementById("confirmModalAccept");
-            const confirmCancel = document.getElementById("confirmModalCancel");
-            if (!confirmModal || !confirmMessage || !confirmAccept || !confirmCancel) return;
-            confirmMessage.textContent = "Eliminar a assinatura deste perfil?";
-            confirmModal.showModal();
-            confirmCancel.onclick = () => confirmModal.close();
-            confirmAccept.onclick = async () => {
-                confirmModal.close();
-                const dados = new FormData();
-                dados.append("csrf_token", csrf);
-                if (meta.notaId) dados.append("nota_id", meta.notaId);
-                try {
-                    const res = await fetch(meta.deleteUrl, { method: "POST", headers: { "X-CSRFToken": csrf }, body: dados });
-                    const json = await res.json();
-                    if (!res.ok || !json.ok) {
-                        globalThis.showToast?.(json.error || "Não foi possível eliminar a assinatura.", "danger");
-                        return;
-                    }
-                    atualizarSlot(null);
-                } catch (error_) {
-                    console.error(error_);
-                    globalThis.showToast?.("Falha de rede ao eliminar a assinatura.", "danger");
-                }
-            };
-            confirmCancel.focus();
-        });
-    };
-
-    btnUpload?.addEventListener("click", () => {
-        if (assinaturaUrl) return;
-        inputFile?.click();
-    });
-    btnDesenhar?.addEventListener("click", () => {
-        if (assinaturaUrl) return;
-        globalThis.SignatureCanvasModal?.abrir({
-            titulo: "Desenhar assinatura",
-            ajuda: "Assine no retângulo acima. Fica guardada no seu perfil para reutilizar noutras notas.",
-            aoGuardar: async (imagem) => {
-                try {
-                    const res = await fetch(meta.uploadUrl, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
-                        body: JSON.stringify({ imagem, nota_id: meta.notaId }),
-                    });
-                    const json = await res.json().catch(() => ({}));
-                    if (!res.ok || !json.ok) {
-                        globalThis.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
-                        return;
-                    }
-                    atualizarSlot(json.url);
-                    globalThis.showToast?.("Assinatura guardada.", "success");
-                } catch (error_) {
-                    console.error(error_);
-                    globalThis.showToast?.("Falha de rede ao guardar a assinatura.", "danger");
-                }
-            },
-        });
-    });
-
-    ligarApagar();
-
-    inputFile?.addEventListener("change", async () => {
-        const ficheiro = inputFile.files[0];
-        if (!ficheiro) return;
-        if (assinaturaUrl) {
-            alert("Já existe uma assinatura neste perfil. Elimine-a para carregar outra.");
-            inputFile.value = "";
-            return;
-        }
-        if (ficheiro.type !== "image/png") {
-            alert("A assinatura deve ser um ficheiro PNG.");
-            inputFile.value = "";
-            return;
-        }
-        const dados = new FormData();
-        dados.append("signature", ficheiro);
-        dados.append("csrf_token", csrf);
-        if (meta.notaId) dados.append("nota_id", meta.notaId);
-        try {
-            const res = await fetch(meta.uploadUrl, {
-                method: "POST",
-                headers: { "X-CSRFToken": csrf },
-                body: dados,
-            });
-            const json = await res.json();
-            if (!res.ok || !json.ok) {
-                alert(json.error || "Não foi possível guardar a assinatura.");
-                inputFile.value = "";
-                return;
-            }
-            atualizarSlot(json.url);
-        } catch (error_) {
-            console.error(error_);
-            alert("Falha de rede ao guardar a assinatura.");
-        }
-    });
 
     const itensHtml = () => {
         const linhas = [];
@@ -266,7 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
         box.style.width = `${seed.w}%`;
         box.style.height = `${seed.h}%`;
         box.innerHTML = `
-            <img src="${assinaturaUrl}" alt="Minha assinatura">
+            <img src="${gestor.assinaturaUrl}" alt="Minha assinatura">
             <span class="sig-handle nw" data-handle="nw"></span>
             <span class="sig-handle ne" data-handle="ne"></span>
             <span class="sig-handle sw" data-handle="sw"></span>
@@ -364,9 +250,9 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const abrirPreview = () => {
-        if (!assinaturaUrl) {
-            alert("Carregue primeiro o PNG em «Minha assinatura».");
-            inputFile?.click();
+        if (!gestor.assinaturaUrl) {
+            globalThis.showToast?.("Carregue primeiro o PNG em «Minha assinatura».", "warning");
+            document.getElementById("inputAssinatura")?.click();
             btnUpload?.focus();
             return;
         }
@@ -388,7 +274,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (confirmarSubmissao) return;
         ev.preventDefault();
         if (!form.reportValidity()) return;
-        if (!assinaturaUrl) {
+        if (!gestor.assinaturaUrl) {
             confirmarSubmissao = true;
             form.requestSubmit(btnSubmeter);
             return;
@@ -400,9 +286,9 @@ document.addEventListener("DOMContentLoaded", () => {
     hint?.addEventListener("click", () => hint.classList.remove("is-visible"));
 
     btnConfirmar?.addEventListener("click", () => {
-        if (!assinaturaUrl) {
+        if (!gestor.assinaturaUrl) {
             globalThis.showToast?.("Carregue a sua assinatura PNG antes de confirmar.", "danger");
-            inputFile?.click();
+            document.getElementById("inputAssinatura")?.click();
             return;
         }
         if (!form.reportValidity()) return;
