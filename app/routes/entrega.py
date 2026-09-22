@@ -42,7 +42,8 @@ bp = Blueprint("entrega", __name__, url_prefix="/entrega")
 
 
 def _voltar_a_listar():
-    return redirect(url_for("entrega.listar"))
+    destino = url_for("entrega.listar")
+    return redirect(destino)
 
 
 @bp.before_request
@@ -364,7 +365,7 @@ def detalhe(nota_id):
     )
     form_decisao = DecisaoForm()
     form_decisao.tecnico_revisao.choices = entrega_service.choices_tecnicos()
-    form_decisao.tecnico_revisao.data = nota.revisao_tecnico_id or nota.criado_por
+    form_decisao.tecnico_revisao.data = str(nota.revisao_tecnico_id or nota.criado_por)
     return render_template(
         "entrega/detalhe.html",
         nota=nota,

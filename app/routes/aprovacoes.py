@@ -66,7 +66,7 @@ def _processar_devolver(servico, nota, form, comentario, voltar):
     if not comentario:
         flash("Indique o motivo da devolução para revisão.", "warning")
         return voltar()
-    if not form.tecnico_revisao.data:
+    if not form.tecnico_revisao.data or form.tecnico_revisao.data == "0":
         flash("Seleccione o técnico que deve rever a nota.", "warning")
         return voltar()
     try:

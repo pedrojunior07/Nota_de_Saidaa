@@ -140,7 +140,7 @@ class DecisaoForm(FlaskForm):
     )
     tecnico_revisao = SelectField(
         "Técnico para revisão",
-        coerce=int,
+        coerce=str,
         validators=[Optional()],
         choices=[],
     )

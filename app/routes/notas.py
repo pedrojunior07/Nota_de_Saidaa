@@ -349,7 +349,7 @@ def detalhe(nota_id):
     )
     form_decisao = DecisaoForm()
     form_decisao.tecnico_revisao.choices = nota_service.choices_tecnicos()
-    form_decisao.tecnico_revisao.data = nota.revisao_tecnico_id or nota.criado_por
+    form_decisao.tecnico_revisao.data = str(nota.revisao_tecnico_id or nota.criado_por)
     return render_template(
         "notas/detalhe.html",
         nota=nota,
