@@ -183,7 +183,7 @@ deploy-dev:
     - ssh $USER@$REMOTE_DEV "mkdir -p /application/$CI_PROJECT_NAME/nginx"
     - ssh $USER@$REMOTE_DEV "mkdir -p /application/$CI_PROJECT_NAME/ssl"
     - scp ./docker-compose.yml $USER@$REMOTE_DEV:/application/$CI_PROJECT_NAME/
-    - scp ./nginx/* $USER@$REMOTE_DEV:/application/$CI_PROJECT_NAME/nginx/
+#    - scp ./nginx/* $USER@$REMOTE_DEV:/application/$CI_PROJECT_NAME/nginx/
     - ssh $USER@$REMOTE_DEV "
         cd /application/$CI_PROJECT_NAME/ &&
         docker login -u $NEXUS_USER -p $NEXUS_PASSWORD $NEXUS_REPO &&
@@ -213,7 +213,7 @@ deploy-uat:
     - sshpass -p $PASS_UAT sudo sh /home/devops/runner-scripts/fetch_ci_vars.sh $CI_PROJECT_ID $VARIABLE_SCOPE_UAT
     - sshpass -p $PASS_UAT scp ./.env $USER_UAT@$REMOTE_UAT:/application/$CI_PROJECT_NAME/
     - sshpass -p $PASS_UAT scp ./docker-compose.yml $USER_UAT@$REMOTE_UAT:/application/$CI_PROJECT_NAME/
-    - sshpass -p $PASS_UAT scp ./nginx/* $USER_UAT@$REMOTE_UAT:/application/$CI_PROJECT_NAME/nginx/
+#    - sshpass -p $PASS_UAT scp ./nginx/* $USER_UAT@$REMOTE_UAT:/application/$CI_PROJECT_NAME/nginx/
     - sshpass -p $PASS_UAT ssh $USER_UAT@$REMOTE_UAT "
         cd /application/$CI_PROJECT_NAME/ &&
         docker login -u $NEXUS_USER -p $NEXUS_PASSWORD $NEXUS_REPO &&
@@ -243,7 +243,7 @@ deploy-sit:
     - sshpass -p $PASS_UAT sudo sh /home/devops/runner-scripts/fetch_ci_vars.sh $CI_PROJECT_ID $VARIABLE_SCOPE_UAT
     - scp ./.env $USER_UAT@$REMOTE_UAT:/application/$CI_PROJECT_NAME/
     - scp ./docker-compose.yml $USER_SIT@$REMOTE_SIT:/application/$CI_PROJECT_NAME
-    - scp ./nginx/* $USER_SIT@$REMOTE_SIT:/application/$CI_PROJECT_NAME/nginx
+#    - scp ./nginx/* $USER_SIT@$REMOTE_SIT:/application/$CI_PROJECT_NAME/nginx
     - sshpass -p $PASS_SIT ssh $USER_SIT@$REMOTE_SIT "
         cd /application/$CI_PROJECT_NAME/ &&
         docker login -u $NEXUS_USER -p $NEXUS_PASSWORD $NEXUS_REPO &&
@@ -275,7 +275,7 @@ deploy-prod:
     - sshpass -p $PASS_PROD sudo sh /home/devops/runner-scripts/fetch_ci_vars.sh $CI_PROJECT_ID $VARIABLE_SCOPE_PROD
     - sshpass -p $PASS_PROD scp ./.env $USER_PROD@$REMOTE_PROD:/application/$CI_PROJECT_NAME/
     - sshpass -p $PASS_PROD scp ./docker-compose.yml $USER_PROD@$REMOTE_PROD:/application/$CI_PROJECT_NAME
-    - sshpass -p $PASS_PROD scp ./nginx/* $USER_PROD@$REMOTE_PROD:/application/$CI_PROJECT_NAME/nginx
+#    - sshpass -p $PASS_PROD scp ./nginx/* $USER_PROD@$REMOTE_PROD:/application/$CI_PROJECT_NAME/nginx
     - sshpass -p $PASS_PROD ssh $USER_PROD@$REMOTE_PROD "
         cd /application/$CI_PROJECT_NAME/ &&
         docker login -u $NEXUS_USER -p $NEXUS_PASSWORD $NEXUS_REPO &&

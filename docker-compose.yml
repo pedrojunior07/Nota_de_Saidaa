@@ -42,20 +42,20 @@ services:
       - stb-network
     restart: unless-stopped
 
-  # Nginx Reverse Proxy (Optional)
-  nginx:
-    image: nexus.standardbank.co.mz:7777/nginx
-    ports:
-      - "83:80"
-      - "5000:5000"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro
-    networks:
-      - stb-network
-    depends_on:
-      - automacao_nota_de_saida
-    restart: unless-stopped
+  # Nginx Reverse Proxy (Optional) — disabled: no nginx/ config in repo yet
+  # nginx:
+  #   image: nexus.standardbank.co.mz:7777/nginx
+  #   ports:
+  #     - "83:80"
+  #     - "5000:5000"
+  #   volumes:
+  #     - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./ssl:/etc/nginx/ssl:ro
+  #   networks:
+  #     - stb-network
+  #   depends_on:
+  #     - automacao_nota_de_saida
+  #   restart: unless-stopped
 
 networks:
   stb-network:
