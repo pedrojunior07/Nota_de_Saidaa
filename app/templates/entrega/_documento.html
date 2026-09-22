@@ -73,12 +73,17 @@
     {% set url_sig = url_assinatura(nota|attr(prefixo ~ '_path')) %}
     {% set d = ASSINATURA_DEFAULTS_ENTREGA[papel] %}
     {% if url_sig %}
+    {% set left = nota|attr(prefixo ~ '_x') if nota|attr(prefixo ~ '_x') is not none else d.x %}
+    {% set top = nota|attr(prefixo ~ '_y') if nota|attr(prefixo ~ '_y') is not none else d.y %}
+    {% set width = nota|attr(prefixo ~ '_w') if nota|attr(prefixo ~ '_w') is not none else d.w %}
+    {% set height = nota|attr(prefixo ~ '_h') if nota|attr(prefixo ~ '_h') is not none else d.h %}
     <img class="folha-sig" alt="Assinatura {{ papel }}" data-papel="{{ papel }}"
          src="{{ url_sig }}"
-         data-left="{{ nota|attr(prefixo ~ '_x') if nota|attr(prefixo ~ '_x') is not none else d.x }}"
-         data-top="{{ nota|attr(prefixo ~ '_y') if nota|attr(prefixo ~ '_y') is not none else d.y }}"
-         data-width="{{ nota|attr(prefixo ~ '_w') if nota|attr(prefixo ~ '_w') is not none else d.w }}"
-         data-height="{{ nota|attr(prefixo ~ '_h') if nota|attr(prefixo ~ '_h') is not none else d.h }}">
+         style="left:{{ left }}%;top:{{ top }}%;width:{{ width }}%;height:{{ height }}%"
+         data-left="{{ left }}"
+         data-top="{{ top }}"
+         data-width="{{ width }}"
+         data-height="{{ height }}">
     {% endif %}
     {% endfor %}
 </article>
