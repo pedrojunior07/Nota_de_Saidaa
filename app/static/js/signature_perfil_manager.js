@@ -33,6 +33,32 @@ globalThis.GestorAssinaturaPerfil = (() => {
             }
         };
 
+        // Extraída do onclick do modal de confirmação (nível superior de
+        // criar(), não aninhada dentro do addEventListener) para não passar
+        // dos 4 níveis de aninhamento de funções.
+        const confirmarEliminarAssinatura = async () => {
+            document.getElementById("confirmModal")?.close();
+            const dados = new FormData();
+            dados.append("csrf_token", csrf);
+            if (incluirNotaId && meta.notaId) dados.append("nota_id", meta.notaId);
+            try {
+                const res = await fetch(meta.deleteUrl, {
+                    method: "POST",
+                    headers: { "X-CSRFToken": csrf },
+                    body: dados,
+                });
+                const json = await res.json();
+                if (!res.ok || !json.ok) {
+                    globalThis.showToast?.(json.error || "Não foi possível eliminar a assinatura.", "danger");
+                    return;
+                }
+                atualizarSlot(null);
+            } catch (error_) {
+                console.error(error_);
+                globalThis.showToast?.("Falha de rede ao eliminar a assinatura.", "danger");
+            }
+        };
+
         const ligarApagar = () => {
             document.getElementById("btnApagarAssinatura")?.addEventListener("click", () => {
                 const confirmModal = document.getElementById("confirmModal");
@@ -43,30 +69,32 @@ globalThis.GestorAssinaturaPerfil = (() => {
                 confirmMessage.textContent = "Eliminar a assinatura deste perfil?";
                 confirmModal.showModal();
                 confirmCancel.onclick = () => confirmModal.close();
-                confirmAccept.onclick = async () => {
-                    confirmModal.close();
-                    const dados = new FormData();
-                    dados.append("csrf_token", csrf);
-                    if (incluirNotaId && meta.notaId) dados.append("nota_id", meta.notaId);
-                    try {
-                        const res = await fetch(meta.deleteUrl, {
-                            method: "POST",
-                            headers: { "X-CSRFToken": csrf },
-                            body: dados,
-                        });
-                        const json = await res.json();
-                        if (!res.ok || !json.ok) {
-                            globalThis.showToast?.(json.error || "Não foi possível eliminar a assinatura.", "danger");
-                            return;
-                        }
-                        atualizarSlot(null);
-                    } catch (error_) {
-                        console.error(error_);
-                        globalThis.showToast?.("Falha de rede ao eliminar a assinatura.", "danger");
-                    }
-                };
+                confirmAccept.onclick = confirmarEliminarAssinatura;
                 confirmCancel.focus();
             });
+        };
+
+        // Extraída do aoGuardar do modal de desenho, pela mesma razão.
+        const guardarAssinaturaDesenhada = async (imagem) => {
+            try {
+                const corpo = { imagem };
+                if (incluirNotaId && meta.notaId) corpo.nota_id = meta.notaId;
+                const res = await fetch(meta.uploadUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
+                    body: JSON.stringify(corpo),
+                });
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || !json.ok) {
+                    globalThis.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
+                    return;
+                }
+                atualizarSlot(`${json.url}?t=${Date.now()}`);
+                globalThis.showToast?.("Assinatura guardada.", "success");
+            } catch (error_) {
+                console.error(error_);
+                globalThis.showToast?.("Falha de rede ao guardar a assinatura.", "danger");
+            }
         };
 
         btnUpload?.addEventListener("click", () => {
@@ -79,32 +107,13 @@ globalThis.GestorAssinaturaPerfil = (() => {
             globalThis.SignatureCanvasModal?.abrir({
                 titulo: "Desenhar assinatura",
                 ajuda: "Assine no retângulo acima. Fica guardada no seu perfil para reutilizar noutras notas.",
-                aoGuardar: async (imagem) => {
-                    try {
-                        const corpo = { imagem };
-                        if (incluirNotaId && meta.notaId) corpo.nota_id = meta.notaId;
-                        const res = await fetch(meta.uploadUrl, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json", "X-CSRFToken": csrf },
-                            body: JSON.stringify(corpo),
-                        });
-                        const json = await res.json().catch(() => ({}));
-                        if (!res.ok || !json.ok) {
-                            globalThis.showToast?.(json.error || "Não foi possível guardar a assinatura.", "danger");
-                            return;
-                        }
-                        atualizarSlot(`${json.url}?t=${Date.now()}`);
-                        globalThis.showToast?.("Assinatura guardada.", "success");
-                    } catch (error_) {
-                        console.error(error_);
-                        globalThis.showToast?.("Falha de rede ao guardar a assinatura.", "danger");
-                    }
-                },
+                aoGuardar: guardarAssinaturaDesenhada,
             });
         });
         ligarApagar();
 
-        inputFile?.addEventListener("change", async () => {
+        // Extraída do listener "change", pela mesma razão de aninhamento.
+        const onFicheiroEscolhido = async () => {
             const ficheiro = inputFile.files?.[0];
             if (!ficheiro) return;
             if (assinaturaUrl) {
@@ -138,7 +147,8 @@ globalThis.GestorAssinaturaPerfil = (() => {
                 console.error(error_);
                 globalThis.showToast?.("Falha de rede ao guardar a assinatura.", "danger");
             }
-        });
+        };
+        inputFile?.addEventListener("change", onFicheiroEscolhido);
 
         return {
             atualizarSlot,

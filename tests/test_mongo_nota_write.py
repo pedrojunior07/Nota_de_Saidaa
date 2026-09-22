@@ -5,6 +5,20 @@ from app.repositories.base import get_db
 from app.repositories.notas import MongoNotaRepository
 
 
+def _dados_teste(numero, funcionario, email, departamento, motivo, observacao):
+    return {
+        "numero_referencia": numero,
+        "data_emissao": date.today(),
+        "funcionario": funcionario,
+        "email_funcionario": email,
+        "departamento": departamento,
+        "motivo": motivo,
+        "observacao": observacao,
+        "origem_local": "Sede IT",
+        "local_emissao": "Maputo",
+    }
+
+
 def test_criar_nota_no_mongo():
     os.environ.setdefault("MONGO_URI", "mongodb://admin:admin123@localhost:27017/nota_saida?authSource=admin")
     os.environ.setdefault("MONGO_DB_NAME", "nota_saida")
@@ -12,16 +26,15 @@ def test_criar_nota_no_mongo():
     repo = MongoNotaRepository()
     numero = "REQ000006253074"
 
-    doc = repo.criar(
-        numero_referencia=numero,
-        data_emissao=date.today(),
-        funcionario="Maria Teste",
-        email_funcionario="maria.teste@standardbank.co.mz",
-        departamento="Infraestrutura",
-        motivo="Teste de persistência Mongo",
-        observacao="Registro de validação automática.",
-        origem_local="Sede IT",
-        local_emissao="Maputo",
+    nota = repo.criar(
+        _dados_teste(
+            numero,
+            "Maria Teste",
+            "maria.teste@standardbank.co.mz",
+            "Infraestrutura",
+            "Teste de persistência Mongo",
+            "Registro de validação automática.",
+        ),
         criado_por="A272754",
         itens=[
             {
@@ -34,7 +47,7 @@ def test_criar_nota_no_mongo():
     )
 
     db = get_db()
-    saved = db.notas_saida.find_one({"_id": doc["_id"]})
+    saved = db.notas_saida.find_one({"_id": nota._oid})
 
     try:
         assert saved is not None
@@ -43,7 +56,7 @@ def test_criar_nota_no_mongo():
         assert saved["estado"] == "rascunho"
         assert len(saved["itens"]) == 1
     finally:
-        db.notas_saida.delete_one({"_id": doc["_id"]})
+        db.notas_saida.delete_one({"_id": nota._oid})
 
 
 def test_ler_e_aprovar_nota_no_mongo():
@@ -53,16 +66,15 @@ def test_ler_e_aprovar_nota_no_mongo():
     repo = MongoNotaRepository()
     numero = "REQ000006232676"
 
-    doc = repo.criar(
-        numero_referencia=numero,
-        data_emissao=date.today(),
-        funcionario="Carlos Revisão",
-        email_funcionario="carlos.revisao@standardbank.co.mz",
-        departamento="Segurança",
-        motivo="Teste de leitura e aprovação Mongo",
-        observacao="Validação de leitura/aprovação.",
-        origem_local="Sede IT",
-        local_emissao="Maputo",
+    nota = repo.criar(
+        _dados_teste(
+            numero,
+            "Carlos Revisão",
+            "carlos.revisao@standardbank.co.mz",
+            "Segurança",
+            "Teste de leitura e aprovação Mongo",
+            "Validação de leitura/aprovação.",
+        ),
         criado_por="A272754",
         itens=[
             {
@@ -76,18 +88,21 @@ def test_ler_e_aprovar_nota_no_mongo():
 
     db = get_db()
     try:
-        encontrado = repo.obter_por_id(doc["_id"])
+        encontrado = repo.obter_por_id(nota.id)
         assert encontrado is not None
-        assert encontrado["numero_referencia"] == numero
+        assert encontrado.numero_referencia == numero
 
-        repo.submeter_para_aprovacao(doc["_id"])
-        repo.adicionar_historico(doc["_id"], "A272754", "Submeteu para aprovação")
-        repo.aprovar(doc["_id"], comentario="Aprovado em teste", aprovado_por="A272754")
+        repo.submeter(nota.id)
+        repo.adicionar_historico(nota.id, "A272754", "Submeteu para aprovação")
+        repo.aprovar(nota.id, comentario="Aprovado em teste", aprovado_por="A272754")
 
-        final = repo.obter_por_id(doc["_id"])
-        assert final["estado"] == "concluida"
-        assert final["comentario_decisao"] == "Aprovado em teste"
-        assert len(final["historico"]) == 1
-        assert final["historico"][0]["acao"] == "Submeteu para aprovação"
+        # A aprovação é o penúltimo passo: fica "aprovada", a aguardar a
+        # assinatura de «Recebido» para só então concluir (fluxo corrigido —
+        # antes saltava logo para "concluida" ao aprovar, o que era um bug).
+        aprovada = repo.obter_por_id(nota.id)
+        assert aprovada.estado == "aprovada"
+        assert aprovada.comentario_decisao == "Aprovado em teste"
+        assert len(aprovada.historico) == 1
+        assert aprovada.historico[0].acao == "Submeteu para aprovação"
     finally:
-        db.notas_saida.delete_one({"_id": doc["_id"]})
+        db.notas_saida.delete_one({"_id": nota._oid})

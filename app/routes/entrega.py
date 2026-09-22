@@ -42,7 +42,7 @@ bp = Blueprint("entrega", __name__, url_prefix="/entrega")
 
 
 def _voltar_a_listar():
-    return _voltar_a_listar()
+    return redirect(url_for("entrega.listar"))
 
 
 @bp.before_request
