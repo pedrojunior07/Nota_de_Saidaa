@@ -164,6 +164,14 @@ class UserRepository:
     def definir_estado(self, user_id, ativo: bool) -> MongoUser | None:
         return self.atualizar(user_id, {"ativo": bool(ativo)})
 
+    def apagar(self, user_id) -> bool:
+        try:
+            oid = ObjectId(str(user_id))
+        except (InvalidId, TypeError):
+            return False
+        resultado = self.col.delete_one({"_id": oid})
+        return resultado.deleted_count == 1
+
     def upsert_demo(
         self, *, nome: str, username: str, perfil: str, password: str
     ) -> MongoUser:

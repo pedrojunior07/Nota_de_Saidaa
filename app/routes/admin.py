@@ -75,17 +75,72 @@ def _nota_exemplo_entrega():
     return nota
 
 
+def _mongo_users_ativo():
+    from app.services.auth_service import _mongo_users_ativo as _flag
+
+    return _flag()
+
+
+def _obter_utilizador(user_id):
+    if _mongo_users_ativo():
+        from app.repositories.users import UserRepository
+
+        return UserRepository().get(user_id)
+    try:
+        return db.session.get(User, int(user_id))
+    except (TypeError, ValueError):
+        return None
+
+
+def _utilizador_tem_notas(user_id):
+    """Impede apagar um utilizador que já criou notas — perderia-se a
+    referência ao autor. Sugere desativar em vez de apagar nesse caso."""
+    from app.models.nota import NotaSaida
+    from app.models.nota_entrega import NotaEntrega
+    from app.repositories.entrega import MongoEntregaRepository
+    from app.repositories.notas import MongoNotaRepository
+    from app.services import entrega_service, nota_service
+
+    if nota_service._mongo_notas_ativo():
+        if MongoNotaRepository().contar({"criado_por": user_id}) > 0:
+            return True
+    else:
+        try:
+            if NotaSaida.query.filter_by(criado_por=int(user_id)).first():
+                return True
+        except (TypeError, ValueError):
+            pass
+
+    if entrega_service._mongo_entrega_ativo():
+        if MongoEntregaRepository().contar({"criado_por": user_id}) > 0:
+            return True
+    else:
+        try:
+            if NotaEntrega.query.filter_by(criado_por=int(user_id)).first():
+                return True
+        except (TypeError, ValueError):
+            pass
+    return False
+
+
 @bp.route("/utilizadores")
 @login_required
 @perfis_requeridos(Perfil.ADMINISTRADOR.value, Perfil.TECNICO_ADMIN.value)
 def utilizadores():
     pagina = request.args.get("pagina", 1, type=int)
     pesquisa = request.args.get("q", "").strip()
-    consulta = User.query.order_by(User.nome.asc())
-    if pesquisa:
-        like = f"%{pesquisa}%"
-        consulta = consulta.filter(db.or_(User.nome.ilike(like), User.username.ilike(like)))
-    paginacao = consulta.paginate(page=pagina, per_page=12, error_out=False)
+    if _mongo_users_ativo():
+        from app.repositories.users import UserRepository
+        from app.utils.pagination import SimplePagination
+
+        utilizadores_lista = UserRepository().listar(pesquisa or None)
+        paginacao = SimplePagination(utilizadores_lista, pagina, 12)
+    else:
+        consulta = User.query.order_by(User.nome.asc())
+        if pesquisa:
+            like = f"%{pesquisa}%"
+            consulta = consulta.filter(db.or_(User.nome.ilike(like), User.username.ilike(like)))
+        paginacao = consulta.paginate(page=pagina, per_page=12, error_out=False)
     return render_template(
         "admin/utilizadores.html", paginacao=paginacao, pesquisa=pesquisa, perfis=PERFIS_LABEL
     )
@@ -100,6 +155,18 @@ def utilizador_novo():
     if form.validate_on_submit():
         if modo_local and not form.password.data:
             flash("Em modo local defina uma palavra-passe para o novo utilizador.", "warning")
+        elif _mongo_users_ativo():
+            from app.repositories.users import UserRepository
+
+            UserRepository().criar(
+                nome=form.nome.data.strip(),
+                username=form.username.data.strip().upper(),
+                perfil=form.perfil.data,
+                ativo=form.ativo.data,
+                password=form.password.data if modo_local else None,
+            )
+            flash("Utilizador criado com sucesso.", "success")
+            return redirect(url_for("admin.utilizadores"))
         else:
             utilizador = User(
                 nome=form.nome.data.strip(),
@@ -137,25 +204,39 @@ def _atualizar_assinatura_propria(utilizador, form):
     utilizador.assinatura_reutilizavel = bool(form.assinatura_reutilizavel.data)
 
 
-@bp.route("/utilizadores/<int:user_id>/editar", methods=["GET", "POST"])
+@bp.route("/utilizadores/<user_id>/editar", methods=["GET", "POST"])
 @login_required
 @perfis_requeridos(Perfil.ADMINISTRADOR.value, Perfil.TECNICO_ADMIN.value)
 def utilizador_editar(user_id):
-    utilizador = db.session.get(User, user_id)
+    utilizador = _obter_utilizador(user_id)
     if utilizador is None:
         abort(404)
     form = UserForm(utilizador_original=utilizador, obj=utilizador)
     modo_local = (current_app.config.get("AUTH_MODE") or "local").lower() == "local"
+    mongo = _mongo_users_ativo()
     if form.validate_on_submit():
-        utilizador.nome = form.nome.data.strip()
-        utilizador.username = form.username.data.strip().upper()
-        utilizador.perfil = form.perfil.data
-        utilizador.ativo = form.ativo.data
-        if modo_local and form.password.data:
-            utilizador.definir_password(form.password.data)
-        if utilizador.id == current_user.id:
-            _atualizar_assinatura_propria(utilizador, form)
-        db.session.commit()
+        campos = {
+            "nome": form.nome.data.strip(),
+            "username": form.username.data.strip().upper(),
+            "perfil": form.perfil.data,
+            "ativo": form.ativo.data,
+        }
+        if mongo:
+            from app.repositories.users import UserRepository
+
+            if modo_local and form.password.data:
+                UserRepository().definir_password(utilizador.id, form.password.data)
+            UserRepository().atualizar(utilizador.id, campos)
+        else:
+            utilizador.nome = campos["nome"]
+            utilizador.username = campos["username"]
+            utilizador.perfil = campos["perfil"]
+            utilizador.ativo = campos["ativo"]
+            if modo_local and form.password.data:
+                utilizador.definir_password(form.password.data)
+            if str(utilizador.id) == str(current_user.id):
+                _atualizar_assinatura_propria(utilizador, form)
+            db.session.commit()
         flash("Utilizador atualizado.", "success")
         return redirect(url_for("admin.utilizadores"))
     return render_template(
@@ -167,20 +248,53 @@ def utilizador_editar(user_id):
     )
 
 
-@bp.route("/utilizadores/<int:user_id>/toggle", methods=["POST"])
+@bp.route("/utilizadores/<user_id>/toggle", methods=["POST"])
 @login_required
 @perfis_requeridos(Perfil.ADMINISTRADOR.value, Perfil.TECNICO_ADMIN.value)
 def utilizador_toggle(user_id):
-    utilizador = db.session.get(User, user_id)
+    utilizador = _obter_utilizador(user_id)
     if utilizador is None:
         abort(404)
-    if utilizador.id == current_user.id:
+    if str(utilizador.id) == str(current_user.id):
         flash("Não pode desativar a sua própria conta.", "warning")
         return redirect(url_for("admin.utilizadores"))
-    utilizador.ativo = not utilizador.ativo
-    db.session.commit()
-    estado = "ativado" if utilizador.ativo else "desativado"
-    flash(f"Utilizador {estado}.", "success")
+    novo_estado = not utilizador.ativo
+    if _mongo_users_ativo():
+        from app.repositories.users import UserRepository
+
+        UserRepository().definir_estado(utilizador.id, novo_estado)
+    else:
+        utilizador.ativo = novo_estado
+        db.session.commit()
+    flash(f"Utilizador {'ativado' if novo_estado else 'desativado'}.", "success")
+    return redirect(url_for("admin.utilizadores"))
+
+
+@bp.route("/utilizadores/<user_id>/apagar", methods=["POST"])
+@login_required
+@perfis_requeridos(Perfil.ADMINISTRADOR.value, Perfil.TECNICO_ADMIN.value)
+def utilizador_apagar(user_id):
+    utilizador = _obter_utilizador(user_id)
+    if utilizador is None:
+        abort(404)
+    if str(utilizador.id) == str(current_user.id):
+        flash("Não pode apagar a sua própria conta.", "warning")
+        return redirect(url_for("admin.utilizadores"))
+    if _utilizador_tem_notas(utilizador.id):
+        flash(
+            "Este utilizador já criou notas — não pode ser apagado (perder-se-ia a "
+            "referência ao autor). Desative a conta em vez disso.",
+            "warning",
+        )
+        return redirect(url_for("admin.utilizadores"))
+    if _mongo_users_ativo():
+        from app.repositories.users import UserRepository
+
+        UserRepository().apagar(utilizador.id)
+    else:
+        db.session.delete(utilizador)
+        db.session.commit()
+    flash("Utilizador apagado.", "success")
     return redirect(url_for("admin.utilizadores"))
 
 

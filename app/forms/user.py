@@ -5,6 +5,7 @@ from wtforms import BooleanField, FileField, PasswordField, SelectField, StringF
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, Regexp, ValidationError
 
 from app.models.user import User
+from app.services.auth_service import _mongo_users_ativo
 from app.utils.constants import PERFIS_LABEL
 
 
@@ -54,7 +55,15 @@ class UserForm(FlaskForm):
         self.utilizador_original = utilizador_original
 
     def validate_username(self, field):
-        existente = User.query.filter_by(username=(field.data or "").strip().upper()).first()
+        username_normalizado = (field.data or "").strip().upper()
+        if _mongo_users_ativo():
+            from app.repositories.users import UserRepository
+
+            id_original = self.utilizador_original.id if self.utilizador_original else None
+            if not UserRepository().username_disponivel(username_normalizado, excepto_id=id_original):
+                raise ValidationError("Já existe um utilizador com este nome de utilizador.")
+            return
+        existente = User.query.filter_by(username=username_normalizado).first()
         if existente and (
             self.utilizador_original is None or existente.id != self.utilizador_original.id
         ):

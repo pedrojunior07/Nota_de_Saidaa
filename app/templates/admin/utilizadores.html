@@ -43,12 +43,31 @@
                     </td>
                     <td>{{ u.data_criacao | formatar_data }}</td>
                     <td class="text-end text-nowrap">
-                        <a href="{{ url_for('admin.utilizador_editar', user_id=u.id) }}" class="btn btn-sm btn-outline-navy">Editar</a>
+                        <a href="{{ url_for('admin.utilizador_editar', user_id=u.id) }}"
+                           class="btn btn-sm btn-icon btn-outline-navy" title="Editar" aria-label="Editar {{ u.nome }}">
+                            <i class="bi bi-pencil"></i>
+                        </a>
                         {% if u.id != current_user.id %}
                         <form method="post" action="{{ url_for('admin.utilizador_toggle', user_id=u.id) }}" class="d-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button class="btn btn-sm btn-link" type="submit">
-                                {% if u.ativo %}Desativar{% else %}Ativar{% endif %}
+                            {% if u.ativo %}
+                            <button class="btn btn-sm btn-icon btn-outline-secondary" type="submit"
+                                    title="Desativar" aria-label="Desativar {{ u.nome }}">
+                                <i class="bi bi-toggle-on"></i>
+                            </button>
+                            {% else %}
+                            <button class="btn btn-sm btn-icon btn-outline-secondary" type="submit"
+                                    title="Ativar" aria-label="Ativar {{ u.nome }}">
+                                <i class="bi bi-toggle-off"></i>
+                            </button>
+                            {% endif %}
+                        </form>
+                        <form method="post" action="{{ url_for('admin.utilizador_apagar', user_id=u.id) }}"
+                              class="d-inline" data-confirm="Apagar o utilizador {{ u.nome }}? Esta ação não pode ser desfeita.">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-icon btn-outline-danger"
+                                    title="Apagar" aria-label="Apagar {{ u.nome }}">
+                                <i class="bi bi-trash"></i>
                             </button>
                         </form>
                         {% endif %}
