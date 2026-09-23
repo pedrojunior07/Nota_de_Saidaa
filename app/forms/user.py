@@ -38,7 +38,7 @@ class UserForm(FlaskForm):
     # Palavra-passe local — só utilizada quando AUTH_MODE=local (desenvolvimento).
     # Em produção (AUTH_MODE=ldap) a autenticação é feita no Active Directory.
     password = PasswordField(
-        "Palavra-passe (apenas modo local)",
+        "Palavra-passe",
         validators=[Optional(), Length(min=8, message="Mínimo de 8 caracteres.")],
     )
     password_confirm = PasswordField(
