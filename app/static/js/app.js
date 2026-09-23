@@ -14,6 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
             pendingForm = form;
             previousFocus = document.activeElement;
             confirmMessage.textContent = form.dataset.confirm;
+            confirmAccept.textContent = form.dataset.confirmLabel || "Apagar";
             confirmModal.showModal();
             confirmCancel.focus();
         });
