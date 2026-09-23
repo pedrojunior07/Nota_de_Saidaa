@@ -45,7 +45,7 @@ class Config:
     # ------------------------------------------------------------------
     AUTH_MODE = os.environ.get("AUTH_MODE", "local")
 
-    LDAP_HOST = os.environ.get("LDAP_HOST", "")          # ex.: dc01.mz.sbicdirectory.com
+    LDAP_HOST = os.environ.get("LDAP_HOST", "")          # opcional: força um servidor; vazio = descoberta automática via DNS
     LDAP_PORT = int(os.environ.get("LDAP_PORT", "636"))
     LDAP_USE_SSL = os.environ.get("LDAP_USE_SSL", "1") != "0"
     # Domínio real (confirmado a partir da biblioteca interna do banco

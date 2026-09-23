@@ -126,8 +126,10 @@ def _procurar_ldap(termo: str, limite: int) -> list[dict]:
     DC=com") — ver app/utils/active_directory.py.
 
     Requer no ambiente:
-        LDAP_HOST, LDAP_BIND_DN, LDAP_BIND_PASSWORD
-        (opcionais: LDAP_BASE_DN, LDAP_DOMAIN, LDAP_PORT, LDAP_USE_SSL,
+        LDAP_BIND_DN, LDAP_BIND_PASSWORD
+        (opcionais: LDAP_HOST — se omitido, os controladores de domínio são
+        descobertos via DNS SRV, ver app/utils/active_directory.py —,
+        LDAP_BASE_DN, LDAP_DOMAIN, LDAP_PORT, LDAP_USE_SSL,
         LDAP_DIRECTORY_FILTER)
     """
     try:
@@ -139,18 +141,19 @@ def _procurar_ldap(termo: str, limite: int) -> list[dict]:
         )
         return []
 
-    from app.utils.active_directory import DOMINIO_OMISSAO, dominio_para_base_dn
+    from app.utils.active_directory import DOMINIO_OMISSAO, dominio_para_base_dn, obter_candidatos_ldap
 
     cfg = current_app.config
-    host = cfg.get("LDAP_HOST")
-    base_dn = cfg.get("LDAP_BASE_DN") or dominio_para_base_dn(cfg.get("LDAP_DOMAIN") or DOMINIO_OMISSAO)
+    dominio = cfg.get("LDAP_DOMAIN") or DOMINIO_OMISSAO
+    base_dn = cfg.get("LDAP_BASE_DN") or dominio_para_base_dn(dominio)
     bind_dn = cfg.get("LDAP_BIND_DN")
     bind_pw = cfg.get("LDAP_BIND_PASSWORD")
-    if not (host and bind_dn and bind_pw):
+    if not (bind_dn and bind_pw):
         current_app.logger.error(
-            "Pesquisa no diretório: faltam LDAP_HOST / LDAP_BIND_DN / LDAP_BIND_PASSWORD."
+            "Pesquisa no diretório: faltam LDAP_BIND_DN / LDAP_BIND_PASSWORD."
         )
         return []
+    candidatos = obter_candidatos_ldap(dominio, cfg.get("LDAP_HOST"))
 
     termo_esc = _escapar_ldap(termo)
     # O AD desta instituição nem sempre tem o atributo "mail" preenchido — o
@@ -165,24 +168,32 @@ def _procurar_ldap(termo: str, limite: int) -> list[dict]:
     )
     filtro = filtro.replace("{q}", termo_esc)
 
-    servidor = Server(
-        host,
-        port=cfg.get("LDAP_PORT", 636),
-        use_ssl=cfg.get("LDAP_USE_SSL", True),
-        get_info=ALL,
-        connect_timeout=8,
-    )
-    try:
-        conexao = Connection(
-            servidor,
-            user=bind_dn,
-            password=bind_pw,
-            auto_bind=True,
-            receive_timeout=8,
+    conexao = None
+    for host, porta_descoberta in candidatos:
+        servidor = Server(
+            host,
+            port=porta_descoberta or cfg.get("LDAP_PORT", 636),
+            use_ssl=cfg.get("LDAP_USE_SSL", True),
+            get_info=ALL,
+            connect_timeout=8,
         )
-    except LDAPException:
-        current_app.logger.exception(
-            "Pesquisa no diretório: não foi possível ligar ao Active Directory."
+        try:
+            conexao = Connection(
+                servidor,
+                user=bind_dn,
+                password=bind_pw,
+                auto_bind=True,
+                receive_timeout=8,
+            )
+            break
+        except LDAPException:
+            current_app.logger.warning(
+                "Pesquisa no diretório: não foi possível ligar a %s, a tentar o próximo.", host
+            )
+            conexao = None
+    if conexao is None:
+        current_app.logger.error(
+            "Pesquisa no diretório: não foi possível ligar a nenhum controlador de domínio para %s.", dominio
         )
         return []
 

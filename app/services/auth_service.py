@@ -61,6 +61,11 @@ def _validar_ldap(username, password):
     (userPrincipalName) — confirmado a partir da biblioteca interna do
     banco jactive-directory (ver app/utils/active_directory.py). Não usa
     NTLM nem o formato "DOMÍNIO\\utilizador".
+
+    Não depende de um LDAP_HOST fixo: por omissão descobre os
+    controladores de domínio reais via DNS (SRV) e tenta cada um por
+    ordem, até um autenticar com sucesso — LDAP_HOST só força um servidor
+    específico, se definido.
     """
     try:
         from ldap3 import ALL, SIMPLE, Connection, Server
@@ -69,36 +74,45 @@ def _validar_ldap(username, password):
         current_app.logger.error("AUTH_MODE=ldap mas o pacote 'ldap3' não está instalado.")
         return False
 
-    from app.utils.active_directory import DOMINIO_OMISSAO, montar_principal
+    from app.utils.active_directory import DOMINIO_OMISSAO, montar_principal, obter_candidatos_ldap
 
-    host = current_app.config.get("LDAP_HOST")
     dominio = current_app.config.get("LDAP_DOMAIN") or DOMINIO_OMISSAO
-    if not host:
-        current_app.logger.error("LDAP_HOST não configurado.")
-        return False
-
-    servidor = Server(
-        host,
-        port=current_app.config.get("LDAP_PORT", 636),
-        use_ssl=current_app.config.get("LDAP_USE_SSL", True),
-        get_info=ALL,
-        connect_timeout=8,
-    )
+    candidatos = obter_candidatos_ldap(dominio, current_app.config.get("LDAP_HOST"))
     principal = montar_principal(username, dominio)
-    try:
-        conexao = Connection(
-            servidor,
-            user=principal,
-            password=password,
-            authentication=SIMPLE,
-            auto_bind=True,
-            receive_timeout=8,
+    porta_omissao = current_app.config.get("LDAP_PORT", 636)
+    usar_ssl = current_app.config.get("LDAP_USE_SSL", True)
+
+    ultimo_erro = None
+    for host, porta_descoberta in candidatos:
+        servidor = Server(
+            host,
+            port=porta_descoberta or porta_omissao,
+            use_ssl=usar_ssl,
+            get_info=ALL,
+            connect_timeout=8,
         )
-        conexao.unbind()
-        return True
-    except LDAPException as exc:
-        current_app.logger.info("Autenticação LDAP falhou para %s: %s", username, exc)
-        return False
-    except Exception:  # pragma: no cover - rede/SSL inesperado
-        current_app.logger.exception("Erro inesperado ao contactar o Active Directory.")
-        return False
+        try:
+            conexao = Connection(
+                servidor,
+                user=principal,
+                password=password,
+                authentication=SIMPLE,
+                auto_bind=True,
+                receive_timeout=8,
+            )
+            conexao.unbind()
+            return True
+        except LDAPException as exc:
+            ultimo_erro = exc
+            current_app.logger.info(
+                "Autenticação LDAP falhou em %s:%s para %s: %s", host, porta_descoberta or porta_omissao, username, exc
+            )
+        except Exception as exc:  # pragma: no cover - rede/SSL inesperado
+            ultimo_erro = exc
+            current_app.logger.exception("Erro inesperado ao contactar %s.", host)
+
+    if ultimo_erro is None:
+        current_app.logger.error(
+            "Autenticação LDAP: não foi possível descobrir nenhum controlador de domínio para %s.", dominio
+        )
+    return False
