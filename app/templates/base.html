@@ -40,12 +40,6 @@
                 </a>
                 {% endif %}
 
-                {% if current_user.is_aprovador() %}
-                <a href="{{ url_for('aprovacoes.listar') }}" class="nav-link {% if request.endpoint == 'aprovacoes.listar' %}active{% endif %}">
-                    <i class="bi bi-clipboard-check"></i> Pendentes
-                </a>
-                {% endif %}
-
                 {% if current_user.pode_gerir_plataforma() %}
                 <div class="nav-section">Administração</div>
                 <a href="{{ url_for('admin.utilizadores') }}" class="nav-link {% if request.endpoint and 'utilizador' in request.endpoint %}active{% endif %}">
@@ -69,12 +63,6 @@
                 <a href="{{ url_for('notas.listar') }}" class="nav-link {% if request.endpoint in ['notas.listar', 'notas.detalhe', 'notas.editar'] %}active{% endif %}">
                     <i class="bi bi-journal-text"></i>
                     Notas de saída
-                </a>
-                {% endif %}
-
-                {% if current_user.is_aprovador() %}
-                <a href="{{ url_for('aprovacoes.listar') }}" class="nav-link {% if request.endpoint == 'aprovacoes.listar' %}active{% endif %}">
-                    <i class="bi bi-clipboard-check"></i> Pendentes
                 </a>
                 {% endif %}
 
