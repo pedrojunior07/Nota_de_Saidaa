@@ -20,7 +20,7 @@
     </div>
     {% if current_user.is_aprovador() %}
     <div class="col-6 col-xl">
-        <a class="stat-card stat-card-link" href="{{ url_for('aprovacoes.listar') }}">
+        <a class="stat-card stat-card-link {{ 'is-active' if filtros.estado == 'pendente_aprovacao' }}" href="{{ url_for('notas.listar', estado='pendente_aprovacao', **qs) }}">
             <span class="stat-icon warning"><i class="bi bi-hourglass-split"></i></span>
             <div>
                 <small>Pendentes</small>
