@@ -363,8 +363,15 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         row.querySelector(".sig-upload-reutilizavel")?.addEventListener("click", carregarAssinaturaReutilizavel);
         row.querySelector(".sig-draw-reutilizavel")?.addEventListener("click", desenharAssinaturaReutilizavel);
-        row.querySelector(".sig-collect-remove")?.addEventListener("click", () => {
-            if (confirm("Remover esta assinatura?")) remover(papel);
+        row.querySelector(".sig-collect-remove")?.addEventListener("click", async () => {
+            const ok = await globalThis.confirmarAcao({
+                titulo: "Remover assinatura",
+                mensagem: rotulo
+                    ? `Remover a assinatura «${rotulo}»? Terá de ser recolhida novamente.`
+                    : "Remover esta assinatura? Terá de ser recolhida novamente.",
+                rotuloAceitar: "Remover",
+            });
+            if (ok) remover(papel);
         });
     });
 });

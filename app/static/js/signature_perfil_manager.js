@@ -37,7 +37,6 @@ globalThis.GestorAssinaturaPerfil = (() => {
         // criar(), não aninhada dentro do addEventListener) para não passar
         // dos 4 níveis de aninhamento de funções.
         const confirmarEliminarAssinatura = async () => {
-            document.getElementById("confirmModal")?.close();
             const dados = new FormData();
             dados.append("csrf_token", csrf);
             if (incluirNotaId && meta.notaId) dados.append("nota_id", meta.notaId);
@@ -60,17 +59,13 @@ globalThis.GestorAssinaturaPerfil = (() => {
         };
 
         const ligarApagar = () => {
-            document.getElementById("btnApagarAssinatura")?.addEventListener("click", () => {
-                const confirmModal = document.getElementById("confirmModal");
-                const confirmMessage = document.getElementById("confirmModalMessage");
-                const confirmAccept = document.getElementById("confirmModalAccept");
-                const confirmCancel = document.getElementById("confirmModalCancel");
-                if (!confirmModal || !confirmMessage || !confirmAccept || !confirmCancel) return;
-                confirmMessage.textContent = "Eliminar a assinatura deste perfil?";
-                confirmModal.showModal();
-                confirmCancel.onclick = () => confirmModal.close();
-                confirmAccept.onclick = confirmarEliminarAssinatura;
-                confirmCancel.focus();
+            document.getElementById("btnApagarAssinatura")?.addEventListener("click", async () => {
+                const ok = await globalThis.confirmarAcao({
+                    titulo: "Eliminar assinatura",
+                    mensagem: "Eliminar a assinatura deste perfil?",
+                    rotuloAceitar: "Eliminar",
+                });
+                if (ok) confirmarEliminarAssinatura();
             });
         };
 

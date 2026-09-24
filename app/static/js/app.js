@@ -1,3 +1,56 @@
+/**
+ * Confirmação estilizada (usa o <dialog id="confirmModal"> do base.html) em
+ * vez do confirm() nativo do browser. Devolve uma Promise<boolean>.
+ *
+ *   if (await confirmarAcao({ mensagem: "Remover?", rotuloAceitar: "Remover" })) ...
+ */
+globalThis.confirmarAcao = ({
+    mensagem,
+    titulo = "Confirmar eliminação",
+    rotuloAceitar = "Apagar",
+} = {}) => {
+    const modal = document.getElementById("confirmModal");
+    const elTitulo = document.getElementById("confirmModalTitle");
+    const elMensagem = document.getElementById("confirmModalMessage");
+    const btnAceitar = document.getElementById("confirmModalAccept");
+    const btnCancelar = document.getElementById("confirmModalCancel");
+    if (!modal || !elMensagem || !btnAceitar || !btnCancelar) {
+        return Promise.resolve(globalThis.confirm(mensagem)); // salvaguarda
+    }
+
+    const tituloOriginal = elTitulo?.textContent;
+    const rotuloOriginal = btnAceitar.textContent;
+    const focoAnterior = document.activeElement;
+
+    return new Promise((resolve) => {
+        let aceite = false;
+        const aoAceitar = () => {
+            aceite = true;
+            modal.close();
+        };
+        const aoCancelar = () => modal.close();
+        // "close" dispara em todos os casos (aceitar, cancelar, Esc, clique
+        // fora), por isso é aqui que se resolve e se limpa o estado.
+        const aoFechar = () => {
+            btnAceitar.removeEventListener("click", aoAceitar);
+            btnCancelar.removeEventListener("click", aoCancelar);
+            if (elTitulo) elTitulo.textContent = tituloOriginal;
+            btnAceitar.textContent = rotuloOriginal;
+            if (focoAnterior && document.contains(focoAnterior)) focoAnterior.focus();
+            resolve(aceite);
+        };
+
+        if (elTitulo) elTitulo.textContent = titulo;
+        elMensagem.textContent = mensagem;
+        btnAceitar.textContent = rotuloAceitar;
+        btnAceitar.addEventListener("click", aoAceitar);
+        btnCancelar.addEventListener("click", aoCancelar);
+        modal.addEventListener("close", aoFechar, { once: true });
+        modal.showModal();
+        btnCancelar.focus();
+    });
+};
+
 document.addEventListener("DOMContentLoaded", () => {
     const confirmModal = document.getElementById("confirmModal");
     const confirmMessage = document.getElementById("confirmModalMessage");
