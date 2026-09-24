@@ -1600,7 +1600,6 @@ a.stat-card-link.is-active { border-color: var(--primary); box-shadow: inset 0 0
 .file-drop--compact:hover .file-drop-btn { background: var(--secondary-bg); border-color: var(--secondary); }
 .file-drop--compact:focus-within { outline: none; }
 .file-drop--compact:focus-within .file-drop-btn { outline: 2px solid var(--secondary); outline-offset: 1px; }
-.file-drop--compact .file-drop-note::before { content: "·"; margin-right: 6px; }
 
 body.sig-preview-open { overflow: hidden; }
 

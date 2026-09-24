@@ -37,9 +37,6 @@
             {% set sig_url = url_assinatura(utilizador.assinatura_path) %}
             <div class="col-12">
                 <label class="form-label">Minha assinatura</label>
-                <p class="text-muted small mb-2">
-                    É a mesma assinatura usada nas notas (bloco «Minha assinatura»).
-                </p>
                 {{ minha_assinatura_slot(sig_url) }}
             </div>
             {% endif %}
