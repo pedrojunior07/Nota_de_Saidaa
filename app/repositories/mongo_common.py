@@ -291,15 +291,21 @@ class BaseMongoNotaRepository:
         if campos:
             self.col.update_one({"_id": as_object_id(nota_id)}, {"$set": campos})
 
-    def submeter(self, nota_id):
-        self.col.update_one(
-            {"_id": as_object_id(nota_id)},
-            {"$set": {
-                "estado": EstadoNota.PENDENTE_APROVACAO.value,
-                "comentario_decisao": None,
-                "revisao_tecnico_id": None,
-            }},
-        )
+    def submeter(self, nota_id, *, aprovador=None):
+        campos = {
+            "estado": EstadoNota.PENDENTE_APROVACAO.value,
+            "comentario_decisao": None,
+            "revisao_tecnico_id": None,
+            "revisao_tecnico_nome": None,
+            "revisao_tecnico_username": None,
+        }
+        if aprovador is not None:
+            campos.update({
+                "aprovador_designado_id": aprovador.id,
+                "aprovador_designado_nome": aprovador.nome_exibicao,
+                "aprovador_designado_username": getattr(aprovador, "username", None),
+            })
+        self.col.update_one({"_id": as_object_id(nota_id)}, {"$set": campos})
 
     def aprovar(self, nota_id, *, aprovado_por, comentario=None, aprovador_nome=None, aprovador_username=None):
         self.col.update_one(
@@ -324,7 +330,10 @@ class BaseMongoNotaRepository:
             }},
         )
 
-    def rejeitar(self, nota_id, *, aprovado_por, comentario=None, aprovador_nome=None, aprovador_username=None):
+    def rejeitar(self, nota_id, *, aprovado_por, comentario=None, aprovador_nome=None,
+                 aprovador_username=None, tecnico=None):
+        """Rejeição (única decisão negativa): a nota volta a ser editável pelo
+        criador e, se indicado, também pelo ``tecnico`` escolhido."""
         self.col.update_one(
             {"_id": as_object_id(nota_id)},
             {"$set": {
@@ -334,21 +343,9 @@ class BaseMongoNotaRepository:
                 "aprovador_username": aprovador_username,
                 "data_aprovacao": to_utc(datetime.now(timezone.utc)),
                 "comentario_decisao": comentario or None,
-            }},
-        )
-
-    def devolver_para_revisao(self, nota_id, *, tecnico_id, motivo, tecnico_nome=None, tecnico_username=None):
-        self.col.update_one(
-            {"_id": as_object_id(nota_id)},
-            {"$set": {
-                "estado": EstadoNota.EM_REVISAO.value,
-                "revisao_tecnico_id": tecnico_id,
-                "revisao_tecnico_nome": tecnico_nome,
-                "revisao_tecnico_username": tecnico_username,
-                "comentario_decisao": motivo,
-                "aprovado_por": None,
-                "aprovador_nome": None,
-                "data_aprovacao": None,
+                "revisao_tecnico_id": tecnico.id if tecnico else None,
+                "revisao_tecnico_nome": tecnico.nome_exibicao if tecnico else None,
+                "revisao_tecnico_username": getattr(tecnico, "username", None) if tecnico else None,
                 "assinaturas.aprovador": {},
             }},
         )

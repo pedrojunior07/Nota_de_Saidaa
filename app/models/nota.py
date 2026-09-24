@@ -63,6 +63,8 @@ class NotaSaida(db.Model):
     assinatura_seguranca_w = db.Column(db.Float, nullable=True)
     assinatura_seguranca_h = db.Column(db.Float, nullable=True)
     revisao_tecnico_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    # Aprovador escolhido pelo técnico ao submeter (quem recebe a notificação).
+    aprovador_designado_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
     @property
     def numero_documento(self):
@@ -83,6 +85,7 @@ class NotaSaida(db.Model):
         "User", foreign_keys=[aprovado_por], back_populates="notas_aprovadas"
     )
     revisao_tecnico = db.relationship("User", foreign_keys=[revisao_tecnico_id])
+    aprovador_designado = db.relationship("User", foreign_keys=[aprovador_designado_id])
     itens = db.relationship(
         "ItemNota",
         back_populates="nota",

@@ -32,6 +32,8 @@ class NotaEntrega(db.Model):
     aprovado_por = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     seguranca_por = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     revisao_tecnico_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    # Aprovador escolhido pelo técnico ao submeter (quem recebe a notificação).
+    aprovador_designado_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
     data_aprovacao = db.Column(db.DateTime, nullable=True)
     data_seguranca = db.Column(db.DateTime, nullable=True)
@@ -70,6 +72,7 @@ class NotaEntrega(db.Model):
     aprovador = db.relationship("User", foreign_keys=[aprovado_por])
     seguranca = db.relationship("User", foreign_keys=[seguranca_por])
     revisao_tecnico = db.relationship("User", foreign_keys=[revisao_tecnico_id])
+    aprovador_designado = db.relationship("User", foreign_keys=[aprovador_designado_id])
     itens = db.relationship(
         "ItemEntrega",
         back_populates="nota",

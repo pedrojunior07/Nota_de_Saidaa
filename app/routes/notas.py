@@ -262,6 +262,9 @@ def editar(nota_id):
         abort(403)
 
     form = NotaForm(obj=nota)
+    form.aprovador.choices = nota_service.choices_aprovadores()
+    if request.method == "GET" and getattr(nota, "aprovador_designado_id", None):
+        form.aprovador.data = str(nota.aprovador_designado_id)
     form.garantir_motivo(nota.motivo)
     itens_form = (
         _itens_do_pedido()
@@ -296,17 +299,24 @@ def editar(nota_id):
             try:
                 pediu_submeter = bool(form.submeter.data)
                 submeter = pediu_submeter and nota.assinaturas_entrega_ok
+                if submeter and not (
+                    (form.aprovador.data not in (None, "", "0"))
+                    or getattr(nota, "aprovador_designado_id", None)
+                ):
+                    raise ValueError("Seleccione o aprovador a quem enviar a nota.")
                 form.motivo.data = form.motivo_efetivo()
-                nota_service.atualizar_nota(
+                nota = nota_service.atualizar_nota(
                     nota,
                     form.data,
                     itens,
                     current_user,
                     submeter=submeter,
+                    aprovador_id=form.aprovador.data,
                     posicao_assinatura=ler_posicao(request.form),
                 )
                 campos_dinamicos_service.guardar_valores("saida", nota.id, valores_extra)
                 if submeter:
+                    notificacoes.nota_submetida("saida", nota, current_user)
                     flash("Nota submetida para aprovação.", "success")
                 elif pediu_submeter:
                     flash(
@@ -317,6 +327,9 @@ def editar(nota_id):
                 else:
                     flash("Nota atualizada.", "success")
                 return redirect(url_for("notas.detalhe", nota_id=nota.id))
+            except ValueError as erro:
+                db.session.rollback()
+                flash(str(erro), "warning")
             except (IntegrityError, DuplicateKeyError):
                 db.session.rollback()
                 flash("Já existe uma nota com este número de referência Remedy.", "danger")
@@ -355,6 +368,7 @@ def detalhe(nota_id):
         nota=nota,
         historico=historico,
         form_decisao=form_decisao,
+        aprovadores=nota_service.choices_aprovadores(),
         campos_valores=campos_dinamicos_service.valores_para_exibir("saida", nota.id),
     )
 
@@ -369,7 +383,7 @@ def submeter(nota_id):
         flash("Não é possível submeter uma nota sem itens.", "warning")
         return redirect(url_for("notas.detalhe", nota_id=nota.id))
     try:
-        nota_service.submeter_nota(nota, current_user)
+        nota_service.submeter_nota(nota, current_user, aprovador_id=request.form.get("aprovador_id"))
     except ValueError as erro:
         db.session.rollback()
         flash(str(erro), "warning")

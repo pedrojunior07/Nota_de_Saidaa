@@ -281,6 +281,9 @@ def editar(nota_id):
         abort(403)
 
     form = NotaForm(obj=nota)
+    form.aprovador.choices = entrega_service.choices_aprovadores()
+    if request.method == "GET" and getattr(nota, "aprovador_designado_id", None):
+        form.aprovador.data = str(nota.aprovador_designado_id)
     form.garantir_motivo(nota.motivo)
     itens_form = (
         _itens_do_pedido()
@@ -316,13 +319,20 @@ def editar(nota_id):
             try:
                 pediu_submeter = bool(form.submeter.data)
                 submeter = pediu_submeter and nota.assinaturas_entrega_ok
+                if submeter and not (
+                    (form.aprovador.data not in (None, "", "0"))
+                    or getattr(nota, "aprovador_designado_id", None)
+                ):
+                    raise ValueError("Seleccione o aprovador a quem enviar a nota.")
                 form.motivo.data = form.motivo_efetivo()
-                entrega_service.atualizar_nota(
+                nota = entrega_service.atualizar_nota(
                     nota, form.data, itens, current_user,
                     submeter=submeter, posicao_assinatura=_posicao("entregue"),
+                    aprovador_id=form.aprovador.data,
                 )
                 campos_dinamicos_service.guardar_valores("entrega", nota.id, valores_extra)
                 if submeter:
+                    notificacoes.nota_submetida("entrega", nota, current_user)
                     flash("Nota submetida para aprovação.", "success")
                 elif pediu_submeter:
                     flash(
@@ -333,6 +343,9 @@ def editar(nota_id):
                 else:
                     flash("Nota atualizada.", "success")
                 return redirect(url_for("entrega.detalhe", nota_id=nota.id))
+            except ValueError as erro:
+                db.session.rollback()
+                flash(str(erro), "warning")
             except (IntegrityError, DuplicateKeyError):
                 db.session.rollback()
                 flash("Já existe uma nota de entrega com este número Remedy.", "danger")
@@ -369,6 +382,7 @@ def detalhe(nota_id):
         nota=nota,
         historico=historico,
         form_decisao=form_decisao,
+        aprovadores=entrega_service.choices_aprovadores(),
         campos_valores=campos_dinamicos_service.valores_para_exibir("entrega", nota.id),
     )
 
@@ -383,7 +397,7 @@ def submeter(nota_id):
         flash("Não é possível submeter uma nota sem itens.", "warning")
         return redirect(url_for("entrega.detalhe", nota_id=nota.id))
     try:
-        entrega_service.submeter_nota(nota, current_user)
+        entrega_service.submeter_nota(nota, current_user, aprovador_id=request.form.get("aprovador_id"))
     except ValueError as erro:
         db.session.rollback()
         flash(str(erro), "warning")
@@ -409,26 +423,19 @@ def decidir(nota_id):
         return redirect(url_for("entrega.detalhe", nota_id=nota.id))
 
     comentario = (form.comentario.data or "").strip() or None
-    if form.devolver.data:
-        if not comentario or not form.tecnico_revisao.data:
-            flash("Indique o motivo e o técnico para a devolução.", "warning")
+    if form.rejeitar.data:
+        if not comentario:
+            flash("Indique o motivo da rejeição.", "warning")
             return redirect(url_for("entrega.detalhe", nota_id=nota.id))
         try:
-            entrega_service.devolver_para_revisao(
-                nota, current_user, form.tecnico_revisao.data, comentario
+            entrega_service.rejeitar_nota(
+                nota, current_user, comentario, tecnico_id=form.tecnico_revisao.data
             )
         except ValueError as erro:
             flash(str(erro), "warning")
             return redirect(url_for("entrega.detalhe", nota_id=nota.id))
-        notificacoes.nota_decidida("entrega", nota, "devolvida", current_user, comentario)
-        flash("Nota devolvida para revisão.", "success")
-    elif form.rejeitar.data:
-        if not comentario:
-            flash("Indique o motivo da rejeição.", "warning")
-            return redirect(url_for("entrega.detalhe", nota_id=nota.id))
-        entrega_service.rejeitar_nota(nota, current_user, comentario)
         notificacoes.nota_decidida("entrega", nota, "rejeitada", current_user, comentario)
-        flash("Nota rejeitada.", "info")
+        flash("Nota rejeitada. O técnico poderá corrigir e resubmeter.", "info")
     else:
         entrega_service.aprovar_nota(
             nota, current_user, comentario, posicao_assinatura=_posicao("aprovador")

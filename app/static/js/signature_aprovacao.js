@@ -195,19 +195,14 @@ document.addEventListener("DOMContentLoaded", () => {
         clearTimeout(hintTimer);
     };
 
-    const btnDevolver = document.getElementById("btnDevolver");
-    btnDevolver?.addEventListener("click", (ev) => {
-        const tecnico = form.querySelector('[name="tecnico_revisao"]');
+    // Rejeitar é a única decisão negativa: exige o motivo. O técnico (vem
+    // pré-seleccionado com quem criou a nota) só muda se o Aprovador quiser.
+    const btnRejeitar = document.getElementById("btnRejeitar");
+    btnRejeitar?.addEventListener("click", (ev) => {
         const comentario = form.querySelector('[name="comentario"]');
-        if (!tecnico?.value || tecnico.value === "0") {
-            ev.preventDefault();
-            globalThis.showToast?.("Seleccione o técnico que deve rever a nota.", "warning");
-            tecnico?.focus();
-            return;
-        }
         if (!(comentario?.value || "").trim()) {
             ev.preventDefault();
-            globalThis.showToast?.("Indique o motivo da devolução para revisão.", "warning");
+            globalThis.showToast?.("Indique o motivo da rejeição.", "warning");
             comentario?.focus();
         }
     });

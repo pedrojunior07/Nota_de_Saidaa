@@ -66,6 +66,12 @@ class _NotaMongoAdapter(NotaMongoAdapterMixin):
         self.revisao_tecnico = PessoaRefMongo(
             self.revisao_tecnico_id, doc.get("revisao_tecnico_username"), doc.get("revisao_tecnico_nome")
         )
+        self.aprovador_designado_id = doc.get("aprovador_designado_id")
+        self.aprovador_designado = PessoaRefMongo(
+            self.aprovador_designado_id,
+            doc.get("aprovador_designado_username"),
+            doc.get("aprovador_designado_nome"),
+        )
 
         assinaturas = doc.get("assinaturas") or {}
         for papel in PAPEIS_ASSINATURA:

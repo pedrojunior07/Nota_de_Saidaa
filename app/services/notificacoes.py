@@ -1,9 +1,12 @@
 """Notificações por e-mail do fluxo das notas (Saída e Entrega).
 
 Quando se envia:
-  - Nota submetida para aprovação  -> todos os Aprovadores ativos.
-  - Nota aprovada / rejeitada      -> o técnico que criou a nota.
-  - Nota devolvida para revisão    -> o técnico escolhido para a revisão.
+  - Nota submetida para aprovação  -> o Aprovador escolhido pelo técnico
+                                      (notas antigas sem escolha: todos os
+                                      Aprovadores ativos).
+  - Nota aprovada                  -> o técnico que criou a nota.
+  - Nota rejeitada                 -> o técnico que criou a nota e, se o
+                                      Aprovador escolheu outro, esse técnico.
   - Nota concluída                 -> o recetor (e-mail «Para» da nota), com o
                                       PDF em anexo, enviado em nome do técnico
                                       que recolheu a assinatura «Recebido».
@@ -116,6 +119,13 @@ def _criador(nota):
     if criador:
         return criador
     return _obter_utilizador(getattr(nota, "criado_por", None))
+
+
+def _aprovador_designado(nota):
+    designado = getattr(nota, "aprovador_designado", None)
+    if designado:
+        return designado
+    return _obter_utilizador(getattr(nota, "aprovador_designado_id", None))
 
 
 def _tecnico_revisao(nota):
@@ -233,10 +243,12 @@ def _seguro(func):
 # ---------------------------------------------------------------------------
 @_seguro
 def nota_submetida(tipo: str, nota, tecnico) -> None:
-    """Nova nota à espera de aprovação -> Aprovadores ativos."""
+    """Nova nota à espera de aprovação -> o Aprovador escolhido."""
     nome_tipo = _TIPOS[tipo]["nome"]
     ref = _referencia(nota)
-    para = [email_de(a) for a in _aprovadores_ativos()]
+    designado = _aprovador_designado(nota)
+    aprovadores = [designado] if designado else _aprovadores_ativos()
+    para = [email_de(a) for a in aprovadores]
     corpo = _corpo(
         "Olá,",
         [f"Tem uma {nome_tipo} nova para aprovar: {ref}.",
@@ -249,29 +261,24 @@ def nota_submetida(tipo: str, nota, tecnico) -> None:
 
 @_seguro
 def nota_decidida(tipo: str, nota, decisao: str, aprovador, comentario: str | None = None) -> None:
-    """Feedback do Aprovador -> técnico.
-
-    ``decisao``: "aprovada", "rejeitada" ou "devolvida".
-    """
+    """Feedback do Aprovador -> técnico(s). ``decisao``: "aprovada" ou "rejeitada"."""
     nome_tipo = _TIPOS[tipo]["nome"]
     ref = _referencia(nota)
-    if decisao == "devolvida":
-        destinatario = _tecnico_revisao(nota) or _criador(nota)
-        titulo = "devolvida para revisão"
-        linhas = [f"A {nome_tipo} {ref} foi devolvida para revisão por {_nome(aprovador)}."]
-    elif decisao == "rejeitada":
-        destinatario = _criador(nota)
+    destinatarios = [_criador(nota)]
+    if decisao == "rejeitada":
+        destinatarios.append(_tecnico_revisao(nota))
         titulo = "rejeitada"
-        linhas = [f"A {nome_tipo} {ref} foi rejeitada por {_nome(aprovador)}."]
+        linhas = [f"A {nome_tipo} {ref} foi rejeitada por {_nome(aprovador)}.",
+                  "Pode corrigir a nota no sistema e voltar a submetê-la."]
     else:
-        destinatario = _criador(nota)
         titulo = "aprovada"
         linhas = [f"A {nome_tipo} {ref} foi aprovada por {_nome(aprovador)}.",
                   "Falta recolher a assinatura de «Recebido» para a concluir."]
     if comentario:
-        linhas.append(f"Comentário: {comentario}")
+        linhas.append(f"{'Motivo' if decisao == 'rejeitada' else 'Comentário'}: {comentario}")
     corpo = _corpo("Olá,", linhas, _link(tipo, nota))
-    _despachar(_montar([email_de(destinatario)], f"{nome_tipo} {ref} — {titulo}", corpo),
+    para = [email_de(d) for d in destinatarios if d]
+    _despachar(_montar(para, f"{nome_tipo} {ref} — {titulo}", corpo),
                f"{tipo}:{decisao}:{nota.id}")
 
 

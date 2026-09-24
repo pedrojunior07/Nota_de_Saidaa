@@ -74,6 +74,9 @@ class NotaForm(FlaskForm):
         render_kw={"rows": 2, "placeholder": "Ex.: Projeto de Estágio"},
     )
     guardar = SubmitField("Guardar rascunho", render_kw={"id": "btnGuardar"})
+    # Aprovador a quem a nota é enviada (e que recebe a notificação). Só é
+    # exigido no momento de submeter — a validação é feita no serviço.
+    aprovador = SelectField("Aprovador", coerce=str, choices=[], validate_choice=False)
     submeter = SubmitField("Submeter para aprovação", render_kw={"id": "btnSubmeter"})
 
     def garantir_motivo(self, valor_atual=None):
@@ -136,14 +139,13 @@ class DecisaoForm(FlaskForm):
     comentario = TextAreaField(
         "Motivo / comentário",
         validators=[Optional(), Length(max=1000)],
-        render_kw={"rows": 3, "placeholder": "Obrigatório para devolver ou rejeitar"},
+        render_kw={"rows": 3, "placeholder": "Obrigatório para rejeitar"},
     )
     tecnico_revisao = SelectField(
-        "Técnico para revisão",
+        "Técnico que vai corrigir (se rejeitar)",
         coerce=str,
         validators=[Optional()],
         choices=[],
     )
     aprovar = SubmitField("Aprovar", render_kw={"id": "btnAprovar"})
-    devolver = SubmitField("Devolver para revisão", render_kw={"id": "btnDevolver"})
     rejeitar = SubmitField("Rejeitar", render_kw={"id": "btnRejeitar"})

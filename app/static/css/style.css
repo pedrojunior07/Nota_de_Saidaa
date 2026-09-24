@@ -1908,3 +1908,5 @@ body.sig-capture-open { overflow: hidden; }
 .sig-handle.ne { right: -5px; top: -5px; cursor: nesw-resize; }
 .sig-handle.sw { left: -5px; bottom: -5px; cursor: nesw-resize; }
 .sig-handle.se { right: -5px; bottom: -5px; cursor: nwse-resize; }
+
+.nota-form-aprovador { max-width: 420px; }

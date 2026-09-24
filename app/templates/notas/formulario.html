@@ -151,6 +151,13 @@
         </div>
     </div>
 
+    {% if nota and nota.assinaturas_entrega_ok %}
+    <div class="nota-form-aprovador mb-2">
+        {{ form.aprovador.label(class="form-label", for="aprovadorForm") }}
+        {{ form.aprovador(class="form-select", id="aprovadorForm") }}
+        <small class="text-muted">Obrigatório para submeter: é quem recebe a nota para aprovar.</small>
+    </div>
+    {% endif %}
     <div class="nota-form-actions d-flex flex-wrap gap-2">
         <a href="{{ url_for('notas.listar') }}" class="btn btn-outline-secondary">Cancelar</a>
         {{ form.guardar(class="btn btn-warning") }}

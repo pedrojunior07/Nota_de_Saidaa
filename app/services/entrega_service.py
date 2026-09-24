@@ -22,13 +22,12 @@ from app.extensions import db
 from app.models.historico_entrega import HistoricoEntrega
 from app.models.item_entrega import ItemEntrega
 from app.models.nota_entrega import NotaEntrega
-from app.models.user import User
 from app.repositories.mongo_common import LOCAL_EMISSAO_OMISSAO, ORIGEM_LOCAL_OMISSAO
 from app.repositories.entrega import MongoEntregaRepository, _NotaEntregaMongoAdapter
 from app.repositories.mongo_common import PessoaRefMongo
 from app.services.entrega_pdf import gerar_pdf_entrega
 from app.utils.assinatura_zonas import enquadrar as _enquadrar
-from app.utils.constants import ESTADOS_LABEL, EstadoNota, Perfil
+from app.utils.constants import ESTADOS_LABEL, EstadoNota
 from app.utils.tempo import agora
 
 
@@ -60,20 +59,6 @@ def registrar(nota, acao, utilizador=None):
         MongoEntregaRepository().adicionar_historico(nota.id, nome, acao)
         return
     db.session.add(HistoricoEntrega(nota_id=nota.id, utilizador=nome, acao=acao))
-
-
-def _obter_tecnico_valido(tecnico_id):
-    if os.environ.get("USE_MONGO_USERS", "0").strip().lower() in {"1", "true", "yes", "on"}:
-        from app.repositories.users import UserRepository
-
-        tecnico = UserRepository().get(tecnico_id)
-    else:
-        tecnico = db.session.get(User, tecnico_id)
-    if tecnico is None or not tecnico.ativo:
-        raise ValueError("Técnico inválido.")
-    if tecnico.perfil not in {Perfil.TECNICO.value, Perfil.TECNICO_ADMIN.value}:
-        raise ValueError("Seleccione um técnico de informática.")
-    return tecnico
 
 
 # ---- itens ----------------------------------------------------------------
@@ -247,14 +232,15 @@ def criar_nota(dados, itens, utilizador, posicao_assinatura=None):
     return nota
 
 
-def atualizar_nota(nota, dados, itens, utilizador, submeter=False, posicao_assinatura=None):
+def atualizar_nota(nota, dados, itens, utilizador, submeter=False, posicao_assinatura=None,
+                   aprovador_id=None):
     if isinstance(nota, _NotaEntregaMongoAdapter):
         repo = MongoEntregaRepository()
         repo.atualizar_dados(nota.id, dados, itens=itens)
         _aplicar_assinatura_entregue_mongo(repo, nota, utilizador, posicao_assinatura)
         registrar(nota, "Atualizou os dados da nota.", utilizador)
         if submeter:
-            _submeter(nota, utilizador)
+            _submeter(nota, utilizador, aprovador_id)
         return repo.obter_por_id(nota.id)
 
     _aplicar_dados(nota, dados)
@@ -262,34 +248,53 @@ def atualizar_nota(nota, dados, itens, utilizador, submeter=False, posicao_assin
     _aplicar_assinatura_entregue(nota, utilizador, posicao_assinatura)
     registrar(nota, "Atualizou os dados da nota.", utilizador)
     if submeter:
-        _submeter(nota, utilizador)
+        _submeter(nota, utilizador, aprovador_id)
     db.session.commit()
     return nota
 
 
 # ---- submissão / aprovação / conclusão --------------------------------
 
-def _submeter(nota, utilizador):
+def _resolver_aprovador(nota, aprovador_id):
+    """Aprovador escolhido pelo técnico; sem escolha, reutiliza o da última
+    submissão (ex.: ao resubmeter uma nota rejeitada)."""
+    from app.services import fluxo_utilizadores
+
+    escolhido = aprovador_id if aprovador_id not in (None, "", "0", 0) else None
+    escolhido = escolhido or getattr(nota, "aprovador_designado_id", None)
+    if not escolhido:
+        raise ValueError("Seleccione o aprovador a quem enviar a nota.")
+    return fluxo_utilizadores.obter_aprovador_valido(escolhido)
+
+
+def _submeter(nota, utilizador, aprovador_id=None):
     if not nota.assinaturas_entrega_ok:
         raise ValueError(
             "A nota precisa da assinatura «Entregue Por» antes de ser "
             "submetida para aprovação."
         )
+    aprovador = _resolver_aprovador(nota, aprovador_id)
+    acao = f"Submeteu a nota para aprovação a {aprovador.nome_exibicao}."
     if isinstance(nota, _NotaEntregaMongoAdapter):
-        MongoEntregaRepository().submeter(nota.id)
+        MongoEntregaRepository().submeter(nota.id, aprovador=aprovador)
         nota.estado = EstadoNota.PENDENTE_APROVACAO.value
         nota.comentario_decisao = None
         nota.revisao_tecnico_id = None
-        registrar(nota, "Submeteu a nota para aprovação.", utilizador)
+        nota.aprovador_designado_id = aprovador.id
+        nota.aprovador_designado = PessoaRefMongo(
+            aprovador.id, getattr(aprovador, "username", None), aprovador.nome_exibicao
+        )
+        registrar(nota, acao, utilizador)
         return
     nota.estado = EstadoNota.PENDENTE_APROVACAO.value
     nota.comentario_decisao = None
     nota.revisao_tecnico_id = None
-    registrar(nota, "Submeteu a nota para aprovação.", utilizador)
+    nota.aprovador_designado_id = aprovador.id
+    registrar(nota, acao, utilizador)
 
 
-def submeter_nota(nota, utilizador):
-    _submeter(nota, utilizador)
+def submeter_nota(nota, utilizador, aprovador_id=None):
+    _submeter(nota, utilizador, aprovador_id)
     if not isinstance(nota, _NotaEntregaMongoAdapter):
         db.session.commit()
 
@@ -341,60 +346,49 @@ def aprovar_nota(nota, utilizador, comentario=None, posicao_assinatura=None):
     db.session.commit()
 
 
-def rejeitar_nota(nota, utilizador, comentario=None):
-    acao = "Rejeitou a nota de entrega."
-    if comentario:
-        acao += f" Motivo: {comentario}"
+def rejeitar_nota(nota, utilizador, comentario=None, tecnico_id=None):
+    """Única decisão negativa (substitui "Rejeitar" + "Devolver para revisão").
+
+    O motivo é obrigatório. A nota fica REJEITADA e editável pelo criador e,
+    se o Aprovador escolher outro técnico, também por esse técnico. A
+    assinatura do Aprovador é limpa: volta a assinar se aprovar depois.
+    """
+    from app.services import fluxo_utilizadores
+
+    comentario = (comentario or "").strip()
+    if not comentario:
+        raise ValueError("Indique o motivo da rejeição.")
+    tecnico = None
+    if tecnico_id not in (None, "", "0", 0):
+        tecnico = fluxo_utilizadores.obter_tecnico_valido(tecnico_id)
+    acao = f"Rejeitou a nota de entrega. Motivo: {comentario}"
+    if tecnico and str(tecnico.id) != str(nota.criado_por):
+        acao += f" — atribuída a {tecnico.nome_exibicao} para correção."
 
     if isinstance(nota, _NotaEntregaMongoAdapter):
-        MongoEntregaRepository().rejeitar(nota.id, aprovado_por=utilizador.id, comentario=comentario,
-                                           aprovador_nome=utilizador.nome_exibicao, aprovador_username=getattr(utilizador, "username", None))
-        nota.estado = EstadoNota.REJEITADA.value
+        MongoEntregaRepository().rejeitar(
+            nota.id, aprovado_por=utilizador.id, comentario=comentario,
+            aprovador_nome=utilizador.nome_exibicao,
+            aprovador_username=getattr(utilizador, "username", None),
+            tecnico=tecnico,
+        )
         nota.aprovado_por = utilizador.id
         nota.aprovador = PessoaRefMongo(utilizador.id, getattr(utilizador, "username", None), utilizador.nome_exibicao)
-        nota.data_aprovacao = agora()
-        nota.comentario_decisao = comentario or None
-        registrar(nota, acao, utilizador)
-        return
-
+        nota.revisao_tecnico = PessoaRefMongo(
+            *( (tecnico.id, getattr(tecnico, "username", None), tecnico.nome_exibicao) if tecnico else () )
+        )
+    else:
+        nota.aprovado_por = utilizador.id
     nota.estado = EstadoNota.REJEITADA.value
-    nota.aprovado_por = utilizador.id
     nota.data_aprovacao = agora()
-    nota.comentario_decisao = comentario or None
-    registrar(nota, acao, utilizador)
-    db.session.commit()
-
-
-def devolver_para_revisao(nota, utilizador, tecnico_id, motivo):
-    tecnico = _obter_tecnico_valido(tecnico_id)
-    acao = f"Devolveu a nota para revisão a {tecnico.nome_exibicao}. Motivo: {motivo}"
-
-    if isinstance(nota, _NotaEntregaMongoAdapter):
-        MongoEntregaRepository().devolver_para_revisao(nota.id, tecnico_id=tecnico.id, motivo=motivo,
-                                                         tecnico_nome=tecnico.nome_exibicao, tecnico_username=getattr(tecnico, "username", None))
-        nota.estado = EstadoNota.EM_REVISAO.value
-        nota.revisao_tecnico_id = tecnico.id
-        nota.revisao_tecnico = PessoaRefMongo(tecnico.id, getattr(tecnico, "username", None), tecnico.nome_exibicao)
-        nota.comentario_decisao = motivo
-        nota.aprovado_por = None
-        nota.aprovador = PessoaRefMongo()
-        nota.data_aprovacao = None
-        nota.assinatura_aprovador_path = None
-        for eixo in ("x", "y", "w", "h"):
-            setattr(nota, f"assinatura_aprovador_{eixo}", None)
-        registrar(nota, acao, utilizador)
-        return
-
-    nota.estado = EstadoNota.EM_REVISAO.value
-    nota.revisao_tecnico_id = tecnico.id
-    nota.comentario_decisao = motivo
-    nota.aprovado_por = None
-    nota.data_aprovacao = None
+    nota.comentario_decisao = comentario
+    nota.revisao_tecnico_id = tecnico.id if tecnico else None
     nota.assinatura_aprovador_path = None
     for eixo in ("x", "y", "w", "h"):
         setattr(nota, f"assinatura_aprovador_{eixo}", None)
     registrar(nota, acao, utilizador)
-    db.session.commit()
+    if not isinstance(nota, _NotaEntregaMongoAdapter):
+        db.session.commit()
 
 
 # ---- assinaturas ------------------------------------------------------
@@ -579,26 +573,17 @@ def garantir_pdf(nota):
 
 
 def choices_tecnicos():
-    """Técnicos elegíveis para revisão. O Administrador gere a plataforma e
-    não interage com notas, por isso não entra nesta lista."""
-    if os.environ.get("USE_MONGO_USERS", "0").strip().lower() in {"1", "true", "yes", "on"}:
-        from app.repositories.users import UserRepository
+    """Técnicos elegíveis (dropdown da rejeição) — SQLite ou Mongo."""
+    from app.services import fluxo_utilizadores
 
-        tecnicos = [
-            u for u in UserRepository().listar()
-            if u.ativo and u.perfil in {Perfil.TECNICO.value, Perfil.TECNICO_ADMIN.value}
-        ]
-        tecnicos.sort(key=lambda u: u.nome or "")
-    else:
-        tecnicos = (
-            User.query.filter(
-                User.ativo.is_(True),
-                User.perfil.in_([Perfil.TECNICO.value, Perfil.TECNICO_ADMIN.value]),
-            )
-            .order_by(User.nome.asc())
-            .all()
-        )
-    return [(0, "Seleccione o técnico")] + [(u.id, f"{u.nome_exibicao} — {u.username}") for u in tecnicos]
+    return fluxo_utilizadores.choices_tecnicos()
+
+
+def choices_aprovadores():
+    """Aprovadores ativos (dropdown da submissão) — SQLite ou Mongo."""
+    from app.services import fluxo_utilizadores
+
+    return fluxo_utilizadores.choices_aprovadores()
 
 
 def estatisticas(query_base=None):
