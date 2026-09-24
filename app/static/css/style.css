@@ -1585,6 +1585,22 @@ a.stat-card-link.is-active { border-color: var(--primary); box-shadow: inset 0 0
 .file-drop-title { color: var(--primary); font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
 .file-drop-hint { color: var(--text); font-size: 13px; word-break: break-word; }
 .file-drop-note { color: var(--muted); font-size: 12px; }
+/* Variante compacta: só um botão-ícone de upload (mesmo estilo dos botões
+   da "Minha assinatura") + nome do ficheiro; descrição no hover (title). */
+.file-drop--compact {
+    display: flex;
+    width: fit-content;
+    gap: 10px;
+    padding: 0;
+    border: 0;
+    background: none;
+    max-width: 100%;
+}
+.file-drop--compact:hover { background: none; }
+.file-drop--compact:hover .file-drop-btn { background: var(--secondary-bg); border-color: var(--secondary); }
+.file-drop--compact:focus-within { outline: none; }
+.file-drop--compact:focus-within .file-drop-btn { outline: 2px solid var(--secondary); outline-offset: 1px; }
+.file-drop--compact .file-drop-note::before { content: "·"; margin-right: 6px; }
 
 body.sig-preview-open { overflow: hidden; }
 

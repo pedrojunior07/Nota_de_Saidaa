@@ -201,16 +201,11 @@
                     </div>
                     <div class="mt-3">
                         {{ form_carregar.ficheiro.label(class="form-label", for="inputCarregarNotaFicheiro") }}
-                        <label class="file-drop" id="fileDropCarregarNota">
+                        <label class="file-drop file-drop--compact" id="fileDropCarregarNota" title="Escolher ficheiro PDF">
                             {{ form_carregar.ficheiro(class="file-drop-input", accept="application/pdf", id="inputCarregarNotaFicheiro") }}
-                            <span class="file-drop-icon"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i></span>
-                            <span class="file-drop-texts">
-                                <strong class="file-drop-title">
-                                    <i class="bi bi-upload" aria-hidden="true"></i> Escolher ficheiro
-                                </strong>
-                                <span class="file-drop-hint" id="fileDropCarregarNotaHint">Nenhum ficheiro selecionado.</span>
-                                <span class="file-drop-note">Só PDF.</span>
-                            </span>
+                            <span class="sig-icon-btn file-drop-btn" aria-hidden="true"><i class="bi bi-upload"></i></span>
+                            <span class="file-drop-hint" id="fileDropCarregarNotaHint">Nenhum ficheiro selecionado.</span>
+                            <span class="file-drop-note">Só PDF</span>
                         </label>
                     </div>
                 </div>
