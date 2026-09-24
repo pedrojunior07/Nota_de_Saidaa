@@ -60,7 +60,23 @@
     </div>
 </div>
 
-<div class="panel mb-3">
+{# Só os campos de texto/datas: o estado já é escolhido pelos cards. #}
+{% set _filtros_ativos = (filtros.referencia or filtros.colaborador or filtros.data_inicio or filtros.data_fim) and true or false %}
+<div class="lista-toolbar">
+    <button type="button" class="sig-icon-btn" id="btnTogglePesquisa"
+            aria-controls="painelPesquisa" aria-expanded="{{ 'true' if _filtros_ativos else 'false' }}"
+            title="Mostrar / ocultar pesquisa" aria-label="Mostrar / ocultar pesquisa">
+        <i class="bi bi-search" aria-hidden="true"></i>
+    </button>
+    {% if current_user.is_tecnico() %}
+    <button type="button" class="sig-icon-btn" data-bs-toggle="modal" data-bs-target="#modalCarregarNota"
+            title="Carregar nota existente" aria-label="Carregar nota existente">
+        <i class="bi bi-upload" aria-hidden="true"></i>
+    </button>
+    {% endif %}
+</div>
+
+<div class="panel mb-3" id="painelPesquisa" {{ '' if _filtros_ativos else 'hidden' }}>
     <form class="filter-form" method="get">
         <div class="row g-2 align-items-end">
             <div class="col-md-4">
@@ -97,14 +113,6 @@
         </div>
     </form>
 </div>
-
-{% if current_user.is_tecnico() %}
-<div class="d-flex justify-content-end mb-3">
-    <button type="button" class="btn btn-outline-navy" data-bs-toggle="modal" data-bs-target="#modalCarregarNota">
-        <i class="bi bi-upload"></i> Carregar nota
-    </button>
-</div>
-{% endif %}
 
 <div class="panel">
     <div class="table-responsive">
@@ -176,13 +184,13 @@
                         {{ form_carregar.numero_referencia(class="form-control") }}
                     </div>
                     <div class="row g-2">
-                        <div class="col-md-7">
-                            {{ form_carregar.funcionario.label(class="form-label") }}
-                            {{ form_carregar.funcionario(class="form-control") }}
-                        </div>
-                        <div class="col-md-5">
+                        <div class="col-md-6">
                             {{ form_carregar.email_funcionario.label(class="form-label") }}
-                            {{ form_carregar.email_funcionario(class="form-control") }}
+                            {{ form_carregar.email_funcionario(class="form-control", id="carregarEmail", type="email", placeholder="nome.apelido@standardbank.co.mz") }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form_carregar.funcionario.label(class="form-label") }}
+                            {{ form_carregar.funcionario(class="form-control", id="carregarNome", placeholder="Preenchido a partir do e-mail") }}
                         </div>
                     </div>
                     <div class="row g-2 mt-0">
@@ -220,6 +228,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ asset('js/listar_notas.js') }}"></script>
 {% if current_user.is_tecnico() %}
 <script>
 (function () {

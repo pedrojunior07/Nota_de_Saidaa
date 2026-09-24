@@ -1926,3 +1926,16 @@ body.sig-capture-open { overflow: hidden; }
 .email-pendente-texto { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
 .email-pendente-aviso { color: #8a5a00; font-size: 13px; }
 @media (max-width: 576px) { .email-pendente { flex-wrap: wrap; } }
+
+/* Listagem: lupa (mostra/oculta pesquisa) + carregar nota, lado a lado à direita */
+.lista-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin: 12px 0;
+}
+.lista-toolbar .sig-icon-btn.is-active {
+    background: var(--secondary-bg);
+    border-color: var(--secondary);
+}
+#painelPesquisa[hidden] { display: none !important; }
