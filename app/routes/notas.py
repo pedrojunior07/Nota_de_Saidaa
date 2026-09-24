@@ -26,7 +26,7 @@ from app.forms.nota import CarregarNotaForm, DecisaoForm, NotaForm
 from app.models.configuracao import Configuracao
 from app.models.nota import NotaSaida
 from app.repositories.notas import MongoNotaRepository
-from app.services import campos_dinamicos_service, directory_service, nota_service
+from app.services import campos_dinamicos_service, directory_service, nota_service, notificacoes
 from app.utils.constants import ESTADOS_LABEL, TIPOS_ITEM, TIPOS_ITEM_COM_SAP, EstadoNota, Perfil
 from app.utils.decorators import perfis_requeridos
 from app.utils.assinatura import ler_posicao, nome_ficheiro, url_assinatura
@@ -374,6 +374,7 @@ def submeter(nota_id):
         db.session.rollback()
         flash(str(erro), "warning")
         return redirect(url_for("notas.detalhe", nota_id=nota.id))
+    notificacoes.nota_submetida("saida", nota, current_user)
     flash("Nota submetida para aprovação.", "success")
     return redirect(url_for("notas.detalhe", nota_id=nota.id))
 
@@ -386,6 +387,7 @@ def guardar_assinatura(nota_id, papel):
     if not nota.pode_gerir_assinaturas(current_user):
         return jsonify({"error": "Sem permissão para recolher assinaturas."}), 403
     dados = request.get_json(silent=True) or {}
+    estava_aprovada = nota.estado == EstadoNota.APROVADA.value
     try:
         fname = nota_service.guardar_assinatura_papel(
             nota,
@@ -396,6 +398,9 @@ def guardar_assinatura(nota_id, papel):
         )
     except ValueError as erro:
         return jsonify({"error": str(erro)}), 400
+    if papel == "recebido" and estava_aprovada and nota.estado == EstadoNota.CONCLUIDA.value:
+        # Última assinatura: nota concluída -> PDF ao recetor, em nome do técnico.
+        notificacoes.nota_concluida("saida", nota, current_user)
     return jsonify({"ok": True, "url": url_assinatura(fname)})
 
 

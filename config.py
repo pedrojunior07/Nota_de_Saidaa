@@ -81,6 +81,29 @@ class Config:
     LDAP_BIND_PASSWORD = os.environ.get("LDAP_BIND_PASSWORD", "")
     LDAP_DIRECTORY_FILTER = os.environ.get("LDAP_DIRECTORY_FILTER", "")  # opcional; use {q} para o termo
 
+    # ------------------------------------------------------------------
+    # Notificações por e-mail
+    #   MAIL_MODE = "simulacao" -> não envia: regista o e-mail no log (omissão)
+    #   MAIL_MODE = "smtp"      -> envia pelo servidor SMTP abaixo
+    #   MAIL_MODE = "desligado" -> não faz nada
+    # MAIL_FROM_TECNICO=1: o PDF da nota concluída sai com o e-mail do técnico
+    # como remetente (o relay SMTP tem de permitir "send as"); com 0 sai de
+    # MAIL_DEFAULT_SENDER e o técnico vai em Reply-To.
+    # APP_BASE_URL: endereço da app usado nos links dos e-mails; vazio = o
+    # endereço do pedido que originou a notificação.
+    # ------------------------------------------------------------------
+    MAIL_MODE = os.environ.get("MAIL_MODE", "simulacao").lower()
+    MAIL_SERVER = os.environ.get("MAIL_SERVER", "")
+    MAIL_PORT = int(os.environ.get("MAIL_PORT", "25"))
+    MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "0") == "1"   # STARTTLS
+    MAIL_USE_SSL = os.environ.get("MAIL_USE_SSL", "0") == "1"   # SMTPS (465)
+    MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
+    MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
+    MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "")
+    MAIL_FROM_TECNICO = os.environ.get("MAIL_FROM_TECNICO", "1") == "1"
+    MAIL_TIMEOUT = float(os.environ.get("MAIL_TIMEOUT", "15"))
+    APP_BASE_URL = os.environ.get("APP_BASE_URL", "")
+
     # Formato aceite para o nome de utilizador (nº de colaborador), ex.: A272754
     USERNAME_REGEX = os.environ.get("USERNAME_REGEX", r"^[A-Za-z]{1,2}\d{4,8}$")
 

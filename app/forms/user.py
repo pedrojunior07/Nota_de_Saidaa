@@ -28,6 +28,15 @@ class UserForm(FlaskForm):
             Length(max=20),
         ],
     )
+    email = StringField(
+        "E-mail (notificações)",
+        filters=[lambda v: (v or "").strip().lower() or None],
+        validators=[
+            Optional(),
+            Email(message="E-mail inválido.", check_deliverability=False),
+            Length(max=150),
+        ],
+    )
     perfil = SelectField(
         "Perfil",
         choices=[(k, v) for k, v in PERFIS_LABEL.items()],

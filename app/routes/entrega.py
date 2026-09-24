@@ -27,7 +27,7 @@ from app.models.configuracao import Configuracao
 from app.models.historico_entrega import HistoricoEntrega
 from app.models.nota_entrega import NotaEntrega
 from app.repositories.entrega import MongoEntregaRepository
-from app.services import campos_dinamicos_service, entrega_service
+from app.services import campos_dinamicos_service, entrega_service, notificacoes
 from app.utils.assinatura import (
     ler_posicao,
     nome_ficheiro,
@@ -388,6 +388,7 @@ def submeter(nota_id):
         db.session.rollback()
         flash(str(erro), "warning")
         return redirect(url_for("entrega.detalhe", nota_id=nota.id))
+    notificacoes.nota_submetida("entrega", nota, current_user)
     flash("Nota submetida para aprovação.", "success")
     return redirect(url_for("entrega.detalhe", nota_id=nota.id))
 
@@ -419,17 +420,20 @@ def decidir(nota_id):
         except ValueError as erro:
             flash(str(erro), "warning")
             return redirect(url_for("entrega.detalhe", nota_id=nota.id))
+        notificacoes.nota_decidida("entrega", nota, "devolvida", current_user, comentario)
         flash("Nota devolvida para revisão.", "success")
     elif form.rejeitar.data:
         if not comentario:
             flash("Indique o motivo da rejeição.", "warning")
             return redirect(url_for("entrega.detalhe", nota_id=nota.id))
         entrega_service.rejeitar_nota(nota, current_user, comentario)
+        notificacoes.nota_decidida("entrega", nota, "rejeitada", current_user, comentario)
         flash("Nota rejeitada.", "info")
     else:
         entrega_service.aprovar_nota(
             nota, current_user, comentario, posicao_assinatura=_posicao("aprovador")
         )
+        notificacoes.nota_decidida("entrega", nota, "aprovada", current_user, comentario)
         flash(
             "Nota aprovada e assinada. Falta a assinatura de «Recebido» para "
             "concluir. A do Segurança é opcional.",
@@ -445,12 +449,16 @@ def guardar_assinatura(nota_id, papel):
     if not nota.pode_gerir_assinaturas(current_user):
         return jsonify({"error": "Sem permissão para recolher assinaturas."}), 403
     dados = request.get_json(silent=True) or {}
+    estava_aprovada = nota.estado == EstadoNota.APROVADA.value
     try:
         fname = entrega_service.guardar_assinatura_papel(
             nota, papel, dados.get("imagem"), current_user, posicao=dados.get("posicao")
         )
     except ValueError as erro:
         return jsonify({"error": str(erro)}), 400
+    if papel == "recebido" and estava_aprovada and nota.estado == EstadoNota.CONCLUIDA.value:
+        # Última assinatura: nota concluída -> PDF ao recetor, em nome do técnico.
+        notificacoes.nota_concluida("entrega", nota, current_user)
     return jsonify({"ok": True, "url": url_assinatura(fname), "estado": nota.estado})
 
 

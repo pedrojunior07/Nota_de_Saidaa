@@ -9,7 +9,7 @@ from app.models.nota import NotaSaida
 from app.models.nota_entrega import NotaEntrega
 from app.repositories.entrega import MongoEntregaRepository
 from app.repositories.notas import MongoNotaRepository
-from app.services import entrega_service, nota_service
+from app.services import entrega_service, nota_service, notificacoes
 from app.utils.assinatura import ler_posicao
 from app.utils.constants import EstadoNota, Perfil
 from app.utils.decorators import perfis_requeridos
@@ -62,7 +62,7 @@ def listar():
     return render_template("aprovacoes/listar.html", pendentes=pendentes)
 
 
-def _processar_devolver(servico, nota, form, comentario, voltar):
+def _processar_devolver(tipo, servico, nota, form, comentario, voltar):
     if not comentario:
         flash("Indique o motivo da devolução para revisão.", "warning")
         return voltar()
@@ -74,26 +74,29 @@ def _processar_devolver(servico, nota, form, comentario, voltar):
     except ValueError as erro:
         flash(str(erro), "warning")
         return voltar()
+    notificacoes.nota_decidida(tipo, nota, "devolvida", current_user, comentario)
     flash("Nota devolvida para revisão ao técnico seleccionado.", "success")
     return voltar()
 
 
-def _processar_rejeitar(servico, nota, comentario, voltar):
+def _processar_rejeitar(tipo, servico, nota, comentario, voltar):
     if not comentario:
         flash("Indique o motivo da rejeição.", "warning")
         return voltar()
     servico.rejeitar_nota(nota, current_user, comentario)
+    notificacoes.nota_decidida(tipo, nota, "rejeitada", current_user, comentario)
     flash("Nota rejeitada. O técnico poderá corrigir e resubmeter.", "info")
     return voltar()
 
 
-def _processar_aprovar(servico, nota, comentario, voltar):
+def _processar_aprovar(tipo, servico, nota, comentario, voltar):
     servico.aprovar_nota(
         nota,
         current_user,
         comentario,
         posicao_assinatura=ler_posicao(request.form, papel="aprovador"),
     )
+    notificacoes.nota_decidida(tipo, nota, "aprovada", current_user, comentario)
     flash(
         "Nota aprovada e assinada. Falta a assinatura de «Recebido» para concluir.",
         "success",
@@ -129,7 +132,7 @@ def decidir(tipo, nota_id):
 
     comentario = (form.comentario.data or "").strip() or None
     if form.devolver.data:
-        return _processar_devolver(servico, nota, form, comentario, _voltar)
+        return _processar_devolver(tipo, servico, nota, form, comentario, _voltar)
     if form.rejeitar.data:
-        return _processar_rejeitar(servico, nota, comentario, _voltar)
-    return _processar_aprovar(servico, nota, comentario, _voltar)
+        return _processar_rejeitar(tipo, servico, nota, comentario, _voltar)
+    return _processar_aprovar(tipo, servico, nota, comentario, _voltar)

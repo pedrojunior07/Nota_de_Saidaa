@@ -16,6 +16,11 @@
                 {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else ""), placeholder="A272754") }}
                 {% for erro in form.username.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
             </div>
+            <div class="col-md-6">
+                {{ form.email.label(class="form-label") }}
+                {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""), placeholder="nome.apelido@standardbank.co.mz", type="email") }}
+                {% for erro in form.email.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
+            </div>
             {% if utilizador %}
             <div class="col-md-6">
                 <label class="form-label">Nome completo</label>

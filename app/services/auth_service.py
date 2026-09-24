@@ -30,24 +30,45 @@ def _mongo_users_ativo() -> bool:
     return os.environ.get("USE_MONGO_USERS", "0").strip().lower() in {"1", "true", "yes", "on"}
 
 
+# Nomes possíveis do campo de e-mail na resposta do endpoint de autenticação
+# (o contrato só garante firstName/lastName; o resto depende do serviço).
+_CHAVES_EMAIL_CONTA = ("email", "mail", "emailAddress", "userPrincipalName", "upn")
+
+
+def _email_da_conta(conta: dict) -> str | None:
+    for chave in _CHAVES_EMAIL_CONTA:
+        valor = (conta.get(chave) or "").strip().lower()
+        if "@" in valor and " " not in valor:
+            return valor
+    return None
+
+
 def _sincronizar_dados_conta(utilizador, mongo: bool, conta: dict | None):
-    """Após validar via API, aproveita o nome que o endpoint já devolveu
-    para manter a conta local atualizada — sem isto, o nome fica preso ao
-    que foi escrito manualmente (ou ao valor de exemplo/seed), mesmo que
-    a pessoa mude de nome no AD."""
+    """Após validar via API, aproveita o nome (e o e-mail, se vier) que o
+    endpoint devolveu para manter a conta local atualizada — sem isto, o nome
+    fica preso ao que foi escrito manualmente (ou ao valor de exemplo/seed),
+    mesmo que a pessoa mude de nome no AD."""
     if not conta:
         return
+    campos = {}
     partes = [p for p in (conta.get("firstName"), conta.get("lastName")) if p]
     nome = " ".join(partes).strip()
-    if not nome or nome == utilizador.nome:
+    if nome and nome != utilizador.nome:
+        campos["nome"] = nome
+    email = _email_da_conta(conta)
+    if email and email != getattr(utilizador, "email", None):
+        campos["email"] = email
+    if not campos:
         return
     if mongo:
-        UserRepository().atualizar(utilizador.id, {"nome": nome})
-        utilizador.nome = nome
+        UserRepository().atualizar(utilizador.id, campos)
+        for chave, valor in campos.items():
+            setattr(utilizador, chave, valor)
     else:
         from app.extensions import db
 
-        utilizador.nome = nome
+        for chave, valor in campos.items():
+            setattr(utilizador, chave, valor)
         db.session.commit()
 
 

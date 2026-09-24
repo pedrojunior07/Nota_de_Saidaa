@@ -18,6 +18,9 @@ class User(UserMixin, db.Model):
     # mantido atualizado) no login, com o firstName/lastName devolvido pela API
     # de autenticação. Fica vazio até ao primeiro login do utilizador.
     nome = db.Column(db.String(150), nullable=True)
+    # E-mail para notificações. Preenchido no login se a API de autenticação
+    # o devolver; o administrador também o pode indicar.
+    email = db.Column(db.String(150), nullable=True)
     # Nome de utilizador = nº de colaborador (ex.: A272754). Identificador de login.
     username = db.Column(db.String(20), unique=True, nullable=False, index=True)
     # Só usado no modo AUTH_MODE=local (dev). Em produção a palavra-passe é validada

@@ -34,6 +34,7 @@ class MongoUser(UserMixin):
         self._doc = doc
         self.id = str(doc["_id"])
         self.nome = doc.get("nome")
+        self.email = doc.get("email")
         self.username = doc.get("username")
         self.password_hash = doc.get("password_hash")
         self.perfil = doc.get("perfil", Perfil.TECNICO.value)
@@ -137,6 +138,7 @@ class UserRepository:
         username: str,
         perfil: str,
         nome: str | None = None,
+        email: str | None = None,
         ativo: bool = True,
         password: str | None = None,
         assinatura_path: str | None = None,
@@ -144,6 +146,7 @@ class UserRepository:
     ) -> MongoUser:
         doc = {
             "nome": (nome or "").strip() or None,
+            "email": (email or "").strip().lower() or None,
             "username": normalizar_username(username),
             "password_hash": generate_password_hash(password) if password else None,
             "perfil": perfil,
