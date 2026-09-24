@@ -41,9 +41,21 @@ class Config:
     # ------------------------------------------------------------------
     # Autenticação
     #   AUTH_MODE = "local"  -> valida a palavra-passe pelo hash local (dev)
-    #   AUTH_MODE = "ldap"   -> valida no Active Directory (palavra-passe do PC)
+    #   AUTH_MODE = "ldap"   -> bind direto no Active Directory
+    #   AUTH_MODE = "api"    -> valida através do endpoint interno do banco
+    #                           (POST .../authenticator/login) — mais simples
+    #                           que "ldap": não precisa de descoberta de DNS
+    #                           nem de montar o bind à mão, e já devolve
+    #                           nome/email prontos a usar.
     # ------------------------------------------------------------------
     AUTH_MODE = os.environ.get("AUTH_MODE", "local")
+
+    AUTH_API_URL = os.environ.get("AUTH_API_URL", "http://10.245.207.70:99/authenticator/login")
+    # "channel"/"traceId" ainda não têm validação nenhuma do lado do
+    # endpoint (confirmado com quem o disponibilizou) — o valor em si não
+    # importa, só têm de vir preenchidos.
+    AUTH_API_CHANNEL = os.environ.get("AUTH_API_CHANNEL", "RAO")
+    AUTH_API_TIMEOUT = float(os.environ.get("AUTH_API_TIMEOUT", "8"))
 
     LDAP_HOST = os.environ.get("LDAP_HOST", "")          # opcional: força um servidor; vazio = descoberta automática via DNS
     LDAP_PORT = int(os.environ.get("LDAP_PORT", "636"))
