@@ -25,7 +25,7 @@
                     <td>{{ "Nota de Saída" if tipo == "saida" else "Nota de Entrega" }}</td>
                     <td><span class="ref">{{ nota.numero_referencia }}</span></td>
                     <td>{{ nota.funcionario }}</td>
-                    <td>{{ nota.criador.nome if nota.criador else "—" }}</td>
+                    <td>{{ nota.criador.nome_exibicao if nota.criador else "—" }}</td>
                     <td>{{ nota.data_criacao | formatar_data(true) }}</td>
                     <td>{{ estado_badge(nota.estado) }}</td>
                     <td class="text-end">

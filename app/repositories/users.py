@@ -43,6 +43,11 @@ class MongoUser(UserMixin):
         self.assinatura_path = assinatura.get("path")
         self.assinatura_reutilizavel = bool(assinatura.get("reutilizavel", False))
 
+    @property
+    def nome_exibicao(self) -> str:
+        """Nome real, ou o nº de colaborador até ao primeiro login."""
+        return self.nome or self.username
+
     # -- Flask-Login -------------------------------------------------------
     def get_id(self) -> str:
         return self.id
@@ -81,7 +86,7 @@ class MongoUser(UserMixin):
         return {
             "user_id": self._doc["_id"],
             "username": self.username,
-            "nome": self.nome,
+            "nome": self.nome_exibicao,
         }
 
     def __repr__(self) -> str:
@@ -129,16 +134,16 @@ class UserRepository:
     def criar(
         self,
         *,
-        nome: str,
         username: str,
         perfil: str,
+        nome: str | None = None,
         ativo: bool = True,
         password: str | None = None,
         assinatura_path: str | None = None,
         assinatura_reutilizavel: bool = False,
     ) -> MongoUser:
         doc = {
-            "nome": nome.strip(),
+            "nome": (nome or "").strip() or None,
             "username": normalizar_username(username),
             "password_hash": generate_password_hash(password) if password else None,
             "perfil": perfil,

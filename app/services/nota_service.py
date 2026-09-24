@@ -36,7 +36,7 @@ def _criar_nota_mongo(dados, itens, utilizador, submeter=False, posicao_assinatu
     nota = repo.criar(
         dados,
         criado_por=utilizador.id,
-        criador_nome=utilizador.nome,
+        criador_nome=utilizador.nome_exibicao,
         criador_username=getattr(utilizador, "username", None),
         itens=itens,
         estado=EstadoNota.RASCUNHO.value,
@@ -282,10 +282,10 @@ def aprovar_nota(nota, utilizador, comentario=None, posicao_assinatura=None):
             nota.assinatura_aprovador_w = pos["w"]
             nota.assinatura_aprovador_h = pos["h"]
         repo.aprovar(nota.id, aprovado_por=utilizador.id, comentario=comentario,
-                     aprovador_nome=utilizador.nome, aprovador_username=getattr(utilizador, "username", None))
+                     aprovador_nome=utilizador.nome_exibicao, aprovador_username=getattr(utilizador, "username", None))
         nota.aprovado_por = utilizador.id
         from app.repositories.mongo_common import PessoaRefMongo
-        nota.aprovador = PessoaRefMongo(utilizador.id, getattr(utilizador, "username", None), utilizador.nome)
+        nota.aprovador = PessoaRefMongo(utilizador.id, getattr(utilizador, "username", None), utilizador.nome_exibicao)
         nota.data_aprovacao = agora()
         nota.comentario_decisao = comentario or None
         nota.estado = EstadoNota.APROVADA.value
@@ -494,11 +494,11 @@ def rejeitar_nota(nota, utilizador, comentario=None):
 
     if isinstance(nota, _NotaMongoAdapter):
         MongoNotaRepository().rejeitar(nota.id, aprovado_por=utilizador.id, comentario=comentario,
-                                        aprovador_nome=utilizador.nome, aprovador_username=getattr(utilizador, "username", None))
+                                        aprovador_nome=utilizador.nome_exibicao, aprovador_username=getattr(utilizador, "username", None))
         nota.estado = EstadoNota.REJEITADA.value
         nota.aprovado_por = utilizador.id
         from app.repositories.mongo_common import PessoaRefMongo
-        nota.aprovador = PessoaRefMongo(utilizador.id, getattr(utilizador, "username", None), utilizador.nome)
+        nota.aprovador = PessoaRefMongo(utilizador.id, getattr(utilizador, "username", None), utilizador.nome_exibicao)
         nota.data_aprovacao = agora()
         nota.comentario_decisao = comentario or None
         historico_service.registrar(nota, acao, utilizador)
@@ -532,17 +532,17 @@ def _obter_tecnico_valido(tecnico_id):
 def devolver_para_revisao(nota, utilizador, tecnico_id, motivo):
     """Devolve a nota a um técnico concreto para correção."""
     tecnico = _obter_tecnico_valido(tecnico_id)
-    acao = f"Devolveu a nota para revisão a {tecnico.nome}. Motivo: {motivo}"
+    acao = f"Devolveu a nota para revisão a {tecnico.nome_exibicao}. Motivo: {motivo}"
 
     if isinstance(nota, _NotaMongoAdapter):
         MongoNotaRepository().devolver_para_revisao(
             nota.id, tecnico_id=tecnico.id, motivo=motivo,
-            tecnico_nome=tecnico.nome, tecnico_username=getattr(tecnico, "username", None),
+            tecnico_nome=tecnico.nome_exibicao, tecnico_username=getattr(tecnico, "username", None),
         )
         nota.estado = EstadoNota.EM_REVISAO.value
         nota.revisao_tecnico_id = tecnico.id
         from app.repositories.mongo_common import PessoaRefMongo
-        nota.revisao_tecnico = PessoaRefMongo(tecnico.id, getattr(tecnico, "username", None), tecnico.nome)
+        nota.revisao_tecnico = PessoaRefMongo(tecnico.id, getattr(tecnico, "username", None), tecnico.nome_exibicao)
         nota.comentario_decisao = motivo
         nota.aprovado_por = None
         nota.aprovador = PessoaRefMongo()
@@ -587,7 +587,7 @@ def listar_tecnicos_ativos():
 
 def choices_tecnicos():
     return [(0, "Seleccione o técnico")] + [
-        (u.id, f"{u.nome} — {u.username}") for u in listar_tecnicos_ativos()
+        (u.id, f"{u.nome_exibicao} — {u.username}") for u in listar_tecnicos_ativos()
     ]
 
 

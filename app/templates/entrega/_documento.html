@@ -44,10 +44,10 @@
     </div>
 
     {% set _nomes = {
-        'aprovador': (nota.aprovador.nome if nota.aprovador else ''),
-        'entregue': (nota.criador.nome if nota.criador else ''),
+        'aprovador': (nota.aprovador.nome_exibicao if nota.aprovador else ''),
+        'entregue': (nota.criador.nome_exibicao if nota.criador else ''),
         'recebido': nota.funcionario,
-        'seguranca': (nota.seguranca.nome if nota.seguranca else ''),
+        'seguranca': (nota.seguranca.nome_exibicao if nota.seguranca else ''),
     } %}
     {% set _lw = ASSINATURA_LINHA_LARGURA_ENTREGA %}
     <div class="folha-assinaturas folha-assinaturas--entrega">

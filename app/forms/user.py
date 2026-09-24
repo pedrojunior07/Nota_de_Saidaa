@@ -14,10 +14,8 @@ def _normalizar_username(valor):
 
 
 class UserForm(FlaskForm):
-    nome = StringField(
-        "Nome completo",
-        validators=[DataRequired(message="Indique o nome."), Length(max=150)],
-    )
+    # Sem campo "nome": o nome completo vem da API de autenticação (AD) e é
+    # gravado automaticamente no primeiro login do utilizador.
     username = StringField(
         "Nome de utilizador (nº de colaborador)",
         filters=[_normalizar_username],

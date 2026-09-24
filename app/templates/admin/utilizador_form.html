@@ -11,15 +11,17 @@
         {{ form.hidden_tag() }}
         <div class="row g-3">
             <div class="col-md-6">
-                {{ form.nome.label(class="form-label") }}
-                {{ form.nome(class="form-control" + (" is-invalid" if form.nome.errors else "")) }}
-                {% for erro in form.nome.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
-            </div>
-            <div class="col-md-6">
                 {{ form.username.label(class="form-label") }}
                 {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else ""), placeholder="A272754") }}
                 {% for erro in form.username.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
             </div>
+            {% if utilizador %}
+            <div class="col-md-6">
+                <label class="form-label">Nome completo</label>
+                <input type="text" class="form-control" value="{{ utilizador.nome or '' }}"
+                       placeholder="Preenchido no primeiro início de sessão" readonly disabled>
+            </div>
+            {% endif %}
             <div class="col-md-6">
                 {{ form.perfil.label(class="form-label") }}
                 {{ form.perfil(class="form-select") }}

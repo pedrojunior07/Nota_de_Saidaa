@@ -56,6 +56,10 @@ class PessoaRefMongo:
         self.username = username
         self.nome = nome
 
+    @property
+    def nome_exibicao(self):
+        return self.nome or self.username
+
     def __bool__(self):
         return bool(self.nome or self.id)
 

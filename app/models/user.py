@@ -14,7 +14,10 @@ class User(UserMixin, db.Model):
     __tablename__ = "users"
 
     id = db.Column(db.Integer, primary_key=True)
-    nome = db.Column(db.String(150), nullable=False)
+    # Nome completo — não é introduzido pelo administrador: é preenchido (e
+    # mantido atualizado) no login, com o firstName/lastName devolvido pela API
+    # de autenticação. Fica vazio até ao primeiro login do utilizador.
+    nome = db.Column(db.String(150), nullable=True)
     # Nome de utilizador = nº de colaborador (ex.: A272754). Identificador de login.
     username = db.Column(db.String(20), unique=True, nullable=False, index=True)
     # Só usado no modo AUTH_MODE=local (dev). Em produção a palavra-passe é validada
@@ -38,6 +41,12 @@ class User(UserMixin, db.Model):
         foreign_keys="NotaSaida.aprovado_por",
         lazy="dynamic",
     )
+
+    @property
+    def nome_exibicao(self):
+        """Nome a mostrar: o nome real, ou o nº de colaborador enquanto o
+        utilizador ainda não fez o primeiro login."""
+        return self.nome or self.username
 
     def definir_password(self, password):
         self.password_hash = generate_password_hash(password)

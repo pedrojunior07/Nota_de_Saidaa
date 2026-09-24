@@ -291,9 +291,9 @@ def _desenhar_grelha_assinaturas(c, nota, fonte, fonte_b):
     from app.utils.assinatura_zonas import CAMPOS_ASSINATURA, LINHA_LARGURA
 
     nomes = {
-        "aprovador": nota.aprovador.nome if nota.aprovador else None,
+        "aprovador": nota.aprovador.nome_exibicao if nota.aprovador else None,
         "recebido": nota.funcionario or None,
-        "entregue": nota.criador.nome if nota.criador else None,
+        "entregue": nota.criador.nome_exibicao if nota.criador else None,
         "seguranca": None,
     }
     meia = LINHA_LARGURA / 2

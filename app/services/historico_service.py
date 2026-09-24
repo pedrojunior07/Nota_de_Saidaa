@@ -17,9 +17,9 @@ def registrar(nota, acao, utilizador=None):
     """Acrescenta uma entrada de histórico associada à nota."""
     nome = "Sistema"
     if utilizador is not None:
-        nome = getattr(utilizador, "nome", str(utilizador))
+        nome = getattr(utilizador, "nome_exibicao", None) or getattr(utilizador, "nome", None) or str(utilizador)
     elif current_user and getattr(current_user, "is_authenticated", False):
-        nome = current_user.nome
+        nome = current_user.nome_exibicao
 
     if _mongo_historico_ativo() or os.environ.get("USE_MONGO_NOTAS", "0").strip().lower() in {"1", "true", "yes", "on"}:
         try:

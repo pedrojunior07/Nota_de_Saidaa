@@ -201,10 +201,10 @@ def _desenhar_campos_adicionais(c, nota, fonte, fonte_b, y, y_minimo=420):
 
 def _assinaturas(c, nota, fonte, fonte_b):
     nomes = {
-        "aprovador": nota.aprovador.nome if nota.aprovador else None,
-        "entregue": nota.criador.nome if nota.criador else None,
+        "aprovador": nota.aprovador.nome_exibicao if nota.aprovador else None,
+        "entregue": nota.criador.nome_exibicao if nota.criador else None,
         "recebido": nota.funcionario or None,
-        "seguranca": nota.seguranca.nome if nota.seguranca else None,
+        "seguranca": nota.seguranca.nome_exibicao if nota.seguranca else None,
     }
     meia = largura_linha("entrega") / 2
     for papel, campo in _campos_assinatura("entrega").items():

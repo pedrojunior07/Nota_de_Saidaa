@@ -41,7 +41,7 @@
         {% if nota.estado == 'em_revisao' %}
         <div class="alert alert-warning mt-3">
             <strong>Devolvida para revisão</strong>
-            {% if nota.revisao_tecnico %} a {{ nota.revisao_tecnico.nome }}{% endif %}.
+            {% if nota.revisao_tecnico %} a {{ nota.revisao_tecnico.nome_exibicao }}{% endif %}.
             {% if nota.comentario_decisao %}<div class="mt-1">Motivo: {{ nota.comentario_decisao }}</div>{% endif %}
         </div>
         {% elif nota.comentario_decisao %}
@@ -52,7 +52,7 @@
 
         {% if nota.estado == 'aprovada' and not _recolher_recebido %}
         <div class="alert alert-info mt-3">
-            Nota aprovada por {{ nota.aprovador.nome if nota.aprovador else '—' }}.
+            Nota aprovada por {{ nota.aprovador.nome_exibicao if nota.aprovador else '—' }}.
             Falta a assinatura de <strong>Recebido</strong>, recolhida pelo técnico responsável.
         </div>
         {% endif %}
@@ -133,7 +133,7 @@
                 assina por último, depois da aprovação. A da <strong>Segurança</strong> é opcional.
             </p>
             {% set linhas = [
-                ('entregue', 'Entregue Por', current_user.nome, _entregue),
+                ('entregue', 'Entregue Por', current_user.nome_exibicao, _entregue),
                 ('seguranca', 'Segurança (opcional)', '', _seguranca),
             ] %}
             {% endif %}

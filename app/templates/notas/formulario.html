@@ -239,7 +239,7 @@
     "uploadUrl": url_for("notas.upload_minha_assinatura"),
     "deleteUrl": url_for("notas.apagar_minha_assinatura"),
     "assinaturaUrl": sig_url,
-    "criador": current_user.nome,
+    "criador": current_user.nome_exibicao,
     "instituicao": config_instituicao.nome_instituicao if config_instituicao else "Standard Bank",
     "direcao": config_instituicao.direcao if config_instituicao else "Direcção de Informática",
     "origemDe": config_instituicao.origem_de if config_instituicao else "Informática",

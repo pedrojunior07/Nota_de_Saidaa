@@ -42,9 +42,9 @@
       impresso. A imagem da assinatura é colocada por cima, dentro da área.
     #}
     {% set _nomes = {
-        'aprovador': (nota.aprovador.nome if nota.aprovador else ''),
+        'aprovador': (nota.aprovador.nome_exibicao if nota.aprovador else ''),
         'recebido': nota.funcionario,
-        'entregue': (nota.criador.nome if nota.criador else ''),
+        'entregue': (nota.criador.nome_exibicao if nota.criador else ''),
         'seguranca': '',
     } %}
     {% set _tipo_nota = 'entrega' if request.blueprint == 'entrega' else 'saida' %}

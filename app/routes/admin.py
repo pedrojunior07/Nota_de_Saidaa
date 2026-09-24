@@ -159,7 +159,6 @@ def utilizador_novo():
             from app.repositories.users import UserRepository
 
             UserRepository().criar(
-                nome=form.nome.data.strip(),
                 username=form.username.data.strip().upper(),
                 perfil=form.perfil.data,
                 ativo=form.ativo.data,
@@ -169,7 +168,6 @@ def utilizador_novo():
             return redirect(url_for("admin.utilizadores"))
         else:
             utilizador = User(
-                nome=form.nome.data.strip(),
                 username=form.username.data.strip().upper(),
                 perfil=form.perfil.data,
                 ativo=form.ativo.data,
@@ -216,7 +214,6 @@ def utilizador_editar(user_id):
     mongo = _mongo_users_ativo()
     if form.validate_on_submit():
         campos = {
-            "nome": form.nome.data.strip(),
             "username": form.username.data.strip().upper(),
             "perfil": form.perfil.data,
             "ativo": form.ativo.data,
@@ -228,7 +225,6 @@ def utilizador_editar(user_id):
                 UserRepository().definir_password(utilizador.id, form.password.data)
             UserRepository().atualizar(utilizador.id, campos)
         else:
-            utilizador.nome = campos["nome"]
             utilizador.username = campos["username"]
             utilizador.perfil = campos["perfil"]
             utilizador.ativo = campos["ativo"]
@@ -242,7 +238,7 @@ def utilizador_editar(user_id):
     return render_template(
         "admin/utilizador_form.html",
         form=form,
-        titulo=f"Editar {utilizador.nome}",
+        titulo=f"Editar {utilizador.nome_exibicao}",
         utilizador=utilizador,
         modo_local=modo_local,
     )

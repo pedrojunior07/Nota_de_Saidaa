@@ -107,10 +107,10 @@
                 <div class="topbar-actions">
                     <div class="topbar-profile" id="topbarProfile">
                         <button class="topbar-avatar-button" id="btnProfileAvatar" type="button" aria-label="Mostrar perfil" aria-expanded="false">
-                            <span class="avatar">{{ current_user.nome[0] if current_user.nome else "U" }}</span>
+                            <span class="avatar">{{ current_user.nome_exibicao[0] if current_user.nome_exibicao else "U" }}</span>
                         </button>
                         <div class="topbar-profile-info" id="topbarProfileInfo" aria-hidden="true">
-                            <strong>{{ current_user.nome }}</strong>
+                            <strong>{{ current_user.nome_exibicao }}</strong>
                             <small>{{ current_user.perfil | perfil_label }}</small>
                         </div>
                         <button class="topbar-profile-toggle" id="btnProfileToggle" type="button" aria-label="Mostrar perfil" aria-expanded="false" title="Mostrar perfil">
