@@ -266,7 +266,13 @@ def _garantir_tabelas_novas(app):
 
 
 def _garantir_dados_iniciais(app):
-    """Após flask db upgrade, a primeira execução cria contas e notas de exemplo."""
+    """Após flask db upgrade, a primeira execução cria contas e notas de
+    exemplo — só quando SEED_DEMO_DATA=1 (opt-in). Por omissão desligado:
+    ligado por omissão criava sempre as contas de exemplo de novo, mesmo
+    depois de alguém as apagar de propósito (ex.: produção, só com contas
+    reais)."""
+    if os.environ.get("SEED_DEMO_DATA", "0").strip().lower() not in {"1", "true", "yes", "on"}:
+        return
     from sqlalchemy import inspect
 
     with app.app_context():
