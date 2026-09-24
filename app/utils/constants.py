@@ -49,6 +49,7 @@ ESTADOS_BADGE = {
 TIPOS_ITEM = [
     "Computador Portátil",
     "Computador Desktop",
+    "PC",
     "Monitor",
     "Tablet",
     "Celular",
@@ -65,6 +66,7 @@ TIPOS_ITEM = [
 TIPOS_ITEM_COM_SAP = [
     "Computador Portátil",
     "Computador Desktop",
+    "PC",
     "Monitor",
 ]
 

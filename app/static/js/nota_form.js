@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Tipos de item que também aceitam número de SAP (opcional). Vem do
     // servidor (TIPOS_ITEM_COM_SAP) via data-attribute; hard-coded como
     // salvaguarda caso o atributo não exista.
-    let TIPOS_COM_SAP = ["Computador Portátil", "Computador Desktop", "Monitor"];
+    let TIPOS_COM_SAP = ["Computador Portátil", "Computador Desktop", "PC", "Monitor"];
     try {
         const dados = JSON.parse(tabelaEl?.dataset.tiposSap || "null");
         if (Array.isArray(dados) && dados.length) TIPOS_COM_SAP = dados;
