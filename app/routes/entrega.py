@@ -29,8 +29,6 @@ from app.models.nota_entrega import NotaEntrega
 from app.repositories.entrega import MongoEntregaRepository
 from app.services import campos_dinamicos_service, entrega_service
 from app.utils.assinatura import (
-    guardar_dataurl_png,
-    guardar_png,
     ler_posicao,
     nome_ficheiro,
     url_assinatura,
@@ -575,21 +573,15 @@ def upload_minha_assinatura():
       - Assinatura desenhada no canvas (JSON, campo "imagem" com um
         data URL "data:image/png;base64,...").
     """
-    if current_user.assinatura_path:
-        return jsonify({"error": "Já existe uma assinatura neste perfil. Elimine-a para carregar outra."}), 409
+    from app.services import assinatura_perfil
 
-    nome_fixo = f"sig_user_{current_user.id}.png"
-    if "signature" in request.files:
-        fname, erro = guardar_png(request.files["signature"], nome_fixo=nome_fixo)
-        nota_id = request.form.get("nota_id") or None
-    else:
-        dados = request.get_json(silent=True) or {}
-        fname, erro = guardar_dataurl_png(dados.get("imagem"), nome_fixo)
-        nota_id = dados.get("nota_id") or None
+    if current_user.assinatura_path:
+        return jsonify({"error": assinatura_perfil.JA_EXISTE}), 409
+
+    fname, nota_id, erro = assinatura_perfil.ler_png_do_pedido(current_user)
     if erro:
         return jsonify({"error": erro}), 400
-    current_user.assinatura_path = fname
-    current_user.assinatura_reutilizavel = True
+    assinatura_perfil.definir_assinatura_perfil(current_user, fname)
     _definir_assinatura_auto(nota_id, fname)
     db.session.commit()
     return jsonify({"ok": True, "filename": fname, "url": url_assinatura(fname)})
@@ -600,11 +592,11 @@ def upload_minha_assinatura():
 @perfis_requeridos(Perfil.TECNICO.value, Perfil.APROVADOR.value, Perfil.TECNICO_ADMIN.value)
 def apagar_minha_assinatura():
     """Remove a única assinatura do perfil (permite carregar outra)."""
+    from app.services.assinatura_perfil import definir_assinatura_perfil
     from app.utils.assinatura import remover_ficheiro
 
     anterior = current_user.assinatura_path
-    current_user.assinatura_path = None
-    current_user.assinatura_reutilizavel = False
+    definir_assinatura_perfil(current_user, None)
     _definir_assinatura_auto(request.form.get("nota_id") or None, None)
     db.session.commit()
     if anterior:

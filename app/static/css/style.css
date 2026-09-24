@@ -1541,56 +1541,6 @@ a.stat-card-link.is-active { border-color: var(--primary); box-shadow: inset 0 0
 .sig-delete-btn:hover { background: #C2183A; }
 
 /* Campo de upload da própria assinatura (admin/utilizadores/<eu>/editar) */
-.user-sig-field {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    max-width: 520px;
-}
-.user-sig-drop {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin: 0;
-    padding: 14px 16px;
-    border: 1px dashed var(--secondary);
-    border-radius: 12px;
-    background: var(--secondary-bg);
-    cursor: pointer;
-    transition: border-color .15s ease, background .15s ease;
-}
-.user-sig-drop:hover { background: #dfe9ff; border-color: var(--primary); }
-.user-sig-drop:focus-within { outline: 2px solid var(--secondary); outline-offset: 2px; }
-.user-sig-input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    border: 0;
-}
-.user-sig-thumb-wrap {
-    flex: 0 0 auto;
-    width: 104px;
-    height: 66px;
-    border-radius: 8px;
-    background: var(--white);
-    border: 1px solid var(--line);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-}
-.user-sig-thumb { max-width: 92px; max-height: 56px; object-fit: contain; display: block; }
-.user-sig-placeholder { font-size: 26px; color: var(--secondary); }
-.user-sig-texts { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.user-sig-title { color: var(--primary); font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
-.user-sig-hint { color: var(--text); font-size: 13px; word-break: break-word; }
-.user-sig-note { color: var(--muted); font-size: 12px; }
-.user-sig-check { margin: 0; padding-left: 2px; }
 
 /* Campo genérico de escolha de ficheiro (ex.: PDF carregado numa nota) */
 .file-drop {

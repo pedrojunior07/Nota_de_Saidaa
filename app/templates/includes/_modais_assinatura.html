@@ -51,3 +51,30 @@
     </div>
 </div>
 {% endmacro %}
+
+{# Bloco "Minha assinatura": desenhar / carregar PNG / miniatura + apagar.
+   É sempre a MESMA assinatura pessoal (users.assinatura_path), onde quer que
+   apareça. Ligado em JS por signature_perfil_manager.js (ids fixos). #}
+{% macro minha_assinatura_slot(sig_url, classe_extra="") %}
+<div class="sig-slot {% if sig_url %}has-signature{% endif %} {{ classe_extra }}" id="sigSlot">
+    <input type="file" id="inputAssinatura" accept="image/png" hidden>
+    <div class="sig-slot-actions">
+        <button type="button" class="sig-icon-btn sig-icon-btn--primary sig-draw-btn" id="btnDesenharAssinatura"
+                title="Desenhar assinatura" aria-label="Desenhar assinatura">
+            <i class="bi bi-vector-pen" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="sig-icon-btn sig-upload-btn" id="btnUploadAssinatura"
+                title="Carregar assinatura PNG" aria-label="Carregar assinatura PNG">
+            <i class="bi bi-upload" aria-hidden="true"></i>
+        </button>
+    </div>
+    <div class="sig-card" id="sigThumbWrap">
+        {% if sig_url %}
+        <img src="{{ sig_url }}" alt="Minha assinatura" class="sig-thumb">
+        <button type="button" class="sig-delete-btn" id="btnApagarAssinatura" title="Eliminar assinatura" aria-label="Eliminar assinatura">
+            <i class="bi bi-trash"></i>
+        </button>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}

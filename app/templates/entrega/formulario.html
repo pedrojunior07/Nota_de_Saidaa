@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "includes/_modais_assinatura.html" import sig_captura %}
+{% from "includes/_modais_assinatura.html" import sig_captura, minha_assinatura_slot %}
 {% set nota = nota|default(none) %}
 {% set sig_url = url_assinatura(current_user.assinatura_path) %}
 {% block title %}{{ titulo }}{% endblock %}
@@ -130,27 +130,7 @@
         <div class="panel mb-3">
             <div class="panel-head"><h2>Minha assinatura («Entregue por»)</h2></div>
             <p class="text-muted mb-3">Será usada automaticamente no campo «Entregue por». Pode reposicioná-la na página da nota.</p>
-            <div class="sig-slot {% if sig_url %}has-signature{% endif %}" id="sigSlot">
-                <input type="file" id="inputAssinatura" accept="image/png" hidden>
-                <div class="sig-slot-actions">
-                    <button type="button" class="sig-icon-btn sig-icon-btn--primary sig-draw-btn" id="btnDesenharAssinatura"
-                            title="Desenhar assinatura" aria-label="Desenhar assinatura">
-                        <i class="bi bi-vector-pen" aria-hidden="true"></i>
-                    </button>
-                    <button type="button" class="sig-icon-btn sig-upload-btn" id="btnUploadAssinatura"
-                            title="Carregar assinatura PNG" aria-label="Carregar assinatura PNG">
-                        <i class="bi bi-upload" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <div class="sig-card" id="sigThumbWrap">
-                    {% if sig_url %}
-                    <img src="{{ sig_url }}" alt="Minha assinatura" class="sig-thumb">
-                    <button type="button" class="sig-delete-btn" id="btnApagarAssinatura" title="Eliminar assinatura" aria-label="Eliminar assinatura">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                    {% endif %}
-                </div>
-            </div>
+            {{ minha_assinatura_slot(sig_url) }}
         </div>
         {{ sig_captura() }}
     </div>

@@ -1,6 +1,6 @@
 """Área de administração: utilizadores, configurações e histórico global."""
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app.extensions import db
@@ -188,18 +188,34 @@ def utilizador_novo():
     )
 
 
-def _atualizar_assinatura_propria(utilizador, form):
-    """A assinatura só pode ser gerida pelo próprio utilizador."""
-    from app.utils.assinatura import guardar_png
+@bp.route("/minha-assinatura", methods=["POST"])
+@login_required
+@perfis_requeridos(Perfil.ADMINISTRADOR.value, Perfil.TECNICO_ADMIN.value)
+def upload_minha_assinatura():
+    """Assinatura pessoal do administrador — a MESMA usada no bloco "Minha
+    assinatura" das notas (um admin que também é técnico partilha-a).
+    Aceita ficheiro PNG ou desenho no canvas, como em notas/entrega."""
+    from app.services import assinatura_perfil
+    from app.utils.assinatura import url_assinatura
 
-    arquivo = request.files.get(form.assinatura.name)
-    if arquivo and arquivo.filename:
-        fname, erro = guardar_png(arquivo, nome_fixo=f"sig_user_{utilizador.id}.png")
-        if erro:
-            flash(erro, "warning")
-        else:
-            utilizador.assinatura_path = fname
-    utilizador.assinatura_reutilizavel = bool(form.assinatura_reutilizavel.data)
+    if current_user.assinatura_path:
+        return jsonify({"error": assinatura_perfil.JA_EXISTE}), 409
+    fname, _nota_id, erro = assinatura_perfil.ler_png_do_pedido(current_user)
+    if erro:
+        return jsonify({"error": erro}), 400
+    assinatura_perfil.definir_assinatura_perfil(current_user, fname)
+    db.session.commit()
+    return jsonify({"ok": True, "filename": fname, "url": url_assinatura(fname)})
+
+
+@bp.route("/minha-assinatura/apagar", methods=["POST"])
+@login_required
+@perfis_requeridos(Perfil.ADMINISTRADOR.value, Perfil.TECNICO_ADMIN.value)
+def apagar_minha_assinatura():
+    from app.services.assinatura_perfil import apagar_assinatura_perfil
+
+    apagar_assinatura_perfil(current_user)
+    return jsonify({"ok": True})
 
 
 @bp.route("/utilizadores/<user_id>/editar", methods=["GET", "POST"])
@@ -230,8 +246,6 @@ def utilizador_editar(user_id):
             utilizador.ativo = campos["ativo"]
             if modo_local and form.password.data:
                 utilizador.definir_password(form.password.data)
-            if str(utilizador.id) == str(current_user.id):
-                _atualizar_assinatura_propria(utilizador, form)
             db.session.commit()
         flash("Utilizador atualizado.", "success")
         return redirect(url_for("admin.utilizadores"))

@@ -1,7 +1,7 @@
 """Formulários de gestão de utilizadores e configurações."""
 
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, FileField, PasswordField, SelectField, StringField, SubmitField
+from wtforms import BooleanField, PasswordField, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, Regexp, ValidationError
 
 from app.models.user import User
@@ -44,8 +44,6 @@ class UserForm(FlaskForm):
         validators=[EqualTo("password", message="As palavras-passe não coincidem.")],
     )
     ativo = BooleanField("Utilizador ativo", default=True)
-    assinatura = FileField("Assinatura (PNG)")
-    assinatura_reutilizavel = BooleanField("Permitir reutilizar assinatura", default=False)
     submit = SubmitField("Guardar")
 
     def __init__(self, utilizador_original=None, *args, **kwargs):
