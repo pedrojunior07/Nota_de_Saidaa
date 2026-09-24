@@ -73,14 +73,16 @@
                 <p class="text-muted mb-3">Ao aprovar uma nota, posicione a assinatura no espaço «Autorizado Por».</p>
                 <div class="sig-slot {% if sig_url %}has-signature{% endif %} mb-3" id="sigSlot">
                     <input type="file" id="inputAssinatura" accept="image/png" hidden>
-                    <button type="button" class="sig-draw-btn" id="btnDesenharAssinatura" title="Desenhar assinatura" aria-label="Desenhar assinatura">
-                        <i class="bi bi-pencil"></i>
-                        <span>Desenhar</span>
-                    </button>
-                    <button type="button" class="sig-upload-btn" id="btnUploadAssinatura" title="Carregar assinatura PNG" aria-label="Carregar assinatura PNG">
-                        <i class="bi bi-cloud-arrow-up"></i>
-                        <span>Carregar PNG</span>
-                    </button>
+                    <div class="sig-slot-actions">
+                        <button type="button" class="sig-icon-btn sig-icon-btn--primary sig-draw-btn" id="btnDesenharAssinatura"
+                                title="Desenhar assinatura" aria-label="Desenhar assinatura">
+                            <i class="bi bi-vector-pen" aria-hidden="true"></i>
+                        </button>
+                        <button type="button" class="sig-icon-btn sig-upload-btn" id="btnUploadAssinatura"
+                                title="Carregar assinatura PNG" aria-label="Carregar assinatura PNG">
+                            <i class="bi bi-upload" aria-hidden="true"></i>
+                        </button>
+                    </div>
                     <div class="sig-card" id="sigThumbWrap">
                         {% if sig_url %}
                         <img src="{{ sig_url }}" alt="Minha assinatura" class="sig-thumb">
