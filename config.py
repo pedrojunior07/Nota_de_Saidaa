@@ -83,16 +83,18 @@ class Config:
 
     # ------------------------------------------------------------------
     # Notificações por e-mail
-    #   MAIL_MODE = "simulacao" -> não envia: regista o e-mail no log (omissão)
-    #   MAIL_MODE = "smtp"      -> envia pelo servidor SMTP abaixo
-    #   MAIL_MODE = "desligado" -> não faz nada
+    # Por omissão os e-mails são abertos no Outlook de quem faz a ação
+    # (mailto / .eml) — o servidor não envia nada. Envio direto opcional:
+    #   MAIL_MODE = "desligado" -> só Outlook (omissão)
+    #   MAIL_MODE = "simulacao" -> também regista no log o que enviaria
+    #   MAIL_MODE = "smtp"      -> também envia pelo servidor SMTP abaixo
     # MAIL_FROM_TECNICO=1: o PDF da nota concluída sai com o e-mail do técnico
     # como remetente (o relay SMTP tem de permitir "send as"); com 0 sai de
     # MAIL_DEFAULT_SENDER e o técnico vai em Reply-To.
     # APP_BASE_URL: endereço da app usado nos links dos e-mails; vazio = o
     # endereço do pedido que originou a notificação.
     # ------------------------------------------------------------------
-    MAIL_MODE = os.environ.get("MAIL_MODE", "simulacao").lower()
+    MAIL_MODE = os.environ.get("MAIL_MODE", "desligado").lower()
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "")
     MAIL_PORT = int(os.environ.get("MAIL_PORT", "25"))
     MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "0") == "1"   # STARTTLS

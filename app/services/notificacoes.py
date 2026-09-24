@@ -14,6 +14,14 @@ Quando se envia:
 Os e-mails de fluxo são curtos de propósito: dizem o que aconteceu e trazem o
 link para a nota — os detalhes vêem-se no sistema.
 
+Como são enviados — pelo Outlook de quem faz a ação (remetente = essa pessoa):
+  - Depois de submeter / aprovar / rejeitar, a página seguinte abre um
+    ``mailto:`` já preenchido (destinatário, assunto, texto); basta Enviar.
+  - Na conclusão, como um ``mailto:`` não leva anexos, é gerado um ``.eml``
+    marcado como não enviado (``X-Unsent: 1``): o Outlook abre-o como e-mail
+    novo, com o PDF em anexo.
+  - Opcionalmente (MAIL_MODE=smtp) o servidor também envia diretamente.
+
 Regras de robustez:
   - Nunca levanta exceções para quem chama: uma falha de e-mail não pode
     impedir aprovar/concluir uma nota. Tudo o que falha fica no log.
@@ -114,6 +122,16 @@ def _aprovadores_ativos() -> list:
     return [u for u in todos if u.perfil == Perfil.APROVADOR.value and u.ativo]
 
 
+def _unicos(pessoas) -> list:
+    vistos, resultado = set(), []
+    for p in pessoas:
+        chave = str(getattr(p, "id", None) or getattr(p, "username", None) or id(p))
+        if p and chave not in vistos:
+            vistos.add(chave)
+            resultado.append(p)
+    return resultado
+
+
 def _criador(nota):
     criador = getattr(nota, "criador", None)
     if criador:
@@ -197,12 +215,12 @@ def _enviar_smtp(msg: EmailMessage, cfg: dict) -> None:
 
 def _despachar(msg: EmailMessage | None, contexto: str) -> None:
     """Envia (ou simula) a mensagem sem bloquear o pedido nem lançar erros."""
+    cfg = current_app.config
+    modo = (cfg.get("MAIL_MODE") or "desligado").lower()
+    if modo == "desligado":
+        return
     if msg is None:
         log.warning("Notificação '%s' sem destinatários com e-mail — não enviada.", contexto)
-        return
-    cfg = current_app.config
-    modo = (cfg.get("MAIL_MODE") or "simulacao").lower()
-    if modo == "desligado":
         return
     if modo != "smtp" or not cfg.get("MAIL_SERVER"):
         log.info(
@@ -224,6 +242,39 @@ def _despachar(msg: EmailMessage | None, contexto: str) -> None:
             log.exception("Falha ao enviar e-mail (%s) para %s.", contexto, msg["To"])
 
     threading.Thread(target=_trabalho, name=f"email-{contexto}", daemon=True).start()
+
+
+def _mailto(para: list[str], assunto: str, corpo: str) -> str:
+    from urllib.parse import quote
+
+    destino = ",".join(sorted({p for p in para if p}))
+    # Outlook precisa de %20 (não "+") e de CRLF nas quebras de linha.
+    return (f"mailto:{quote(destino, safe='@,')}?subject={quote(assunto)}"
+            f"&body={quote(corpo.replace(chr(10), chr(13) + chr(10)))}")
+
+
+def _email_pendente(dados: dict) -> None:
+    """Guarda na sessão o e-mail que a próxima página deve abrir no Outlook."""
+    from flask import session
+
+    session["email_pendente"] = dados
+
+
+def _sem_email(pessoas) -> list[str]:
+    return [_nome(p) for p in pessoas if p and not email_de(p)]
+
+
+def _aviso_sem_email(pessoas) -> str | None:
+    em_falta = _sem_email(pessoas)
+    if not em_falta:
+        return None
+    return (", ".join(em_falta) + " ainda não iniciou sessão no sistema, por isso o e-mail "
+            "não é conhecido — escreva-o no Outlook.")
+
+
+def _fechar(corpo: str, remetente) -> str:
+    return corpo.replace("\nEsta é uma mensagem automática — não responda a este e-mail.",
+                         f"\nCumprimentos,\n{_nome(remetente)}")
 
 
 def _seguro(func):
@@ -255,8 +306,14 @@ def nota_submetida(tipo: str, nota, tecnico) -> None:
          f"Submetida por: {_nome(tecnico)}."],
         _link(tipo, nota),
     )
-    _despachar(_montar(para, f"{nome_tipo} {ref} — pendente de aprovação", corpo),
-               f"{tipo}:submetida:{nota.id}")
+    assunto = f"{nome_tipo} {ref} — pendente de aprovação"
+    _email_pendente({
+        "mailto": _mailto(para, assunto, _fechar(corpo, tecnico)),
+        "titulo": "Notificar o aprovador",
+        "texto": f"Envie o e-mail a {', '.join(_nome(a) for a in aprovadores)} a avisar que a nota está pendente.",
+        "aviso": _aviso_sem_email(aprovadores),
+    })
+    _despachar(_montar(para, assunto, corpo), f"{tipo}:submetida:{nota.id}")
 
 
 @_seguro
@@ -277,29 +334,25 @@ def nota_decidida(tipo: str, nota, decisao: str, aprovador, comentario: str | No
     if comentario:
         linhas.append(f"{'Motivo' if decisao == 'rejeitada' else 'Comentário'}: {comentario}")
     corpo = _corpo("Olá,", linhas, _link(tipo, nota))
-    para = [email_de(d) for d in destinatarios if d]
-    _despachar(_montar(para, f"{nome_tipo} {ref} — {titulo}", corpo),
-               f"{tipo}:{decisao}:{nota.id}")
+    destinatarios = _unicos(destinatarios)
+    para = [email_de(d) for d in destinatarios]
+    assunto = f"{nome_tipo} {ref} — {titulo}"
+    _email_pendente({
+        "mailto": _mailto(para, assunto, _fechar(corpo, aprovador)),
+        "titulo": "Notificar o técnico",
+        "texto": f"Envie o e-mail a {', '.join(_nome(d) for d in destinatarios)} com a decisão.",
+        "aviso": _aviso_sem_email(destinatarios),
+    })
+    _despachar(_montar(para, assunto, corpo), f"{tipo}:{decisao}:{nota.id}")
 
 
-@_seguro
-def nota_concluida(tipo: str, nota, tecnico) -> None:
-    """Nota concluída -> recetor, com o PDF, em nome do técnico que recolheu
-    a assinatura «Recebido»."""
+def _mensagem_recetor(tipo: str, nota, tecnico) -> EmailMessage | None:
     nome_tipo = _TIPOS[tipo]["nome"]
     ref = _referencia(nota)
     pdf = getattr(nota, "pdf_path", None)
     if not pdf or not os.path.isfile(pdf):
-        log.warning("Nota %s concluída sem PDF em disco (%s) — e-mail não enviado.", nota.id, pdf)
-        return
-
-    email_tecnico = email_de(tecnico)
-    cfg = current_app.config
-    remetente, responder_a = None, email_tecnico
-    if email_tecnico and cfg.get("MAIL_FROM_TECNICO"):
-        remetente = formataddr((_nome(tecnico), email_tecnico))
-        responder_a = None
-
+        log.warning("Nota %s concluída sem PDF em disco (%s).", nota.id, pdf)
+        return None
     corpo = "\n".join([
         f"Caro(a) {getattr(nota, 'funcionario', None) or 'colaborador(a)'},",
         "",
@@ -308,7 +361,43 @@ def nota_concluida(tipo: str, nota, tecnico) -> None:
         "Cumprimentos,",
         _nome(tecnico),
     ])
-    msg = _montar([getattr(nota, "email_funcionario", None)],
-                  f"{nome_tipo} {ref}", corpo,
-                  remetente=remetente, responder_a=responder_a, anexo=pdf)
-    _despachar(msg, f"{tipo}:concluida:{nota.id}")
+    email_tecnico = email_de(tecnico)
+    remetente = formataddr((_nome(tecnico), email_tecnico)) if email_tecnico else None
+    return _montar([getattr(nota, "email_funcionario", None)], f"{nome_tipo} {ref}", corpo,
+                   remetente=remetente, anexo=pdf)
+
+
+def eml_para_recetor(tipo: str, nota, tecnico) -> bytes | None:
+    """Rascunho .eml (X-Unsent) com o PDF: o Outlook abre-o pronto a enviar,
+    a partir da conta de quem o abre."""
+    msg = _mensagem_recetor(tipo, nota, tecnico)
+    if msg is None:
+        return None
+    del msg["From"]          # o Outlook usa a conta de quem envia
+    msg["X-Unsent"] = "1"
+    return msg.as_bytes()
+
+
+@_seguro
+def nota_concluida(tipo: str, nota, tecnico) -> None:
+    """Nota concluída -> recetor, com o PDF, enviado pelo técnico que recolheu
+    a assinatura «Recebido» (rascunho .eml no Outlook dele)."""
+    from flask import url_for as _url
+
+    endpoint = f"{_TIPOS[tipo]['detalhe'].split('.')[0]}.email_recetor"
+    _email_pendente({
+        "eml": _url(endpoint, nota_id=nota.id),
+        "titulo": "Enviar o PDF ao recetor",
+        "texto": (f"Abra o e-mail preparado para {getattr(nota, 'funcionario', '') or 'o recetor'} "
+                  "com a nota concluída em anexo e clique em Enviar."),
+        "aviso": None,
+    })
+    if (current_app.config.get("MAIL_MODE") or "").lower() == "smtp":
+        msg = _mensagem_recetor(tipo, nota, tecnico)
+        if msg is not None and not current_app.config.get("MAIL_FROM_TECNICO"):
+            responder = msg["From"]
+            del msg["From"]
+            msg["From"] = current_app.config.get("MAIL_DEFAULT_SENDER") or "nao-responder@localhost"
+            if responder:
+                msg["Reply-To"] = responder
+        _despachar(msg, f"{tipo}:concluida:{nota.id}")

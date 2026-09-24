@@ -1,0 +1,26 @@
+{# E-mail preparado pela última ação (submeter / aprovar / rejeitar / concluir),
+   aberto no Outlook de quem a fez. Ver app/services/notificacoes.py. #}
+{% set _email = session.pop('email_pendente', None) %}
+{% if _email %}
+<div class="email-pendente" id="emailPendente" role="status">
+    <span class="email-pendente-icone"><i class="bi bi-envelope-arrow-up" aria-hidden="true"></i></span>
+    <div class="email-pendente-texto">
+        <strong>{{ _email.titulo }}</strong>
+        <span>{{ _email.texto }}</span>
+        {% if _email.eml %}<span class="text-muted small">É descarregado um ficheiro de e-mail — abra-o para o Outlook o mostrar pronto a enviar.</span>{% endif %}
+        {% if _email.aviso %}<span class="email-pendente-aviso"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> {{ _email.aviso }}</span>{% endif %}
+    </div>
+    <a class="btn btn-navy btn-sm" id="btnEmailPendente"
+       href="{{ _email.mailto or _email.eml }}" {% if _email.eml %}download{% endif %}>
+        <i class="bi bi-envelope" aria-hidden="true"></i> Abrir no Outlook
+    </a>
+    <button type="button" class="btn-close" aria-label="Fechar"
+            onclick="document.getElementById('emailPendente').remove()"></button>
+</div>
+<script>
+    // Abre logo o e-mail (o botão fica para o caso de o browser bloquear).
+    window.addEventListener("load", function () {
+        setTimeout(function () { document.getElementById("btnEmailPendente")?.click(); }, 400);
+    });
+</script>
+{% endif %}

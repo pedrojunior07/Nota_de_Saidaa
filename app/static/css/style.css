@@ -1910,3 +1910,19 @@ body.sig-capture-open { overflow: hidden; }
 .sig-handle.se { right: -5px; bottom: -5px; cursor: nwse-resize; }
 
 .nota-form-aprovador { max-width: 420px; }
+
+/* Aviso "e-mail pronto a enviar no Outlook" (includes/_email_pendente.html) */
+.email-pendente {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    border: 1px solid var(--secondary);
+    border-radius: 12px;
+    background: var(--secondary-bg);
+}
+.email-pendente-icone { font-size: 22px; color: var(--navy); }
+.email-pendente-texto { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.email-pendente-aviso { color: #8a5a00; font-size: 13px; }
+@media (max-width: 576px) { .email-pendente { flex-wrap: wrap; } }

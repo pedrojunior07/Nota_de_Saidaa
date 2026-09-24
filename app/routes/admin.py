@@ -159,7 +159,6 @@ def utilizador_novo():
             from app.repositories.users import UserRepository
 
             UserRepository().criar(
-                email=form.email.data,
                 username=form.username.data.strip().upper(),
                 perfil=form.perfil.data,
                 ativo=form.ativo.data,
@@ -169,7 +168,6 @@ def utilizador_novo():
             return redirect(url_for("admin.utilizadores"))
         else:
             utilizador = User(
-                email=form.email.data,
                 username=form.username.data.strip().upper(),
                 perfil=form.perfil.data,
                 ativo=form.ativo.data,
@@ -233,7 +231,6 @@ def utilizador_editar(user_id):
     if form.validate_on_submit():
         campos = {
             "username": form.username.data.strip().upper(),
-            "email": form.email.data,
             "perfil": form.perfil.data,
             "ativo": form.ativo.data,
         }
@@ -245,7 +242,6 @@ def utilizador_editar(user_id):
             UserRepository().atualizar(utilizador.id, campos)
         else:
             utilizador.username = campos["username"]
-            utilizador.email = campos["email"]
             utilizador.perfil = campos["perfil"]
             utilizador.ativo = campos["ativo"]
             if modo_local and form.password.data:

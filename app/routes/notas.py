@@ -373,6 +373,27 @@ def detalhe(nota_id):
     )
 
 
+@bp.route("/<nota_id>/email-recetor.eml")
+@login_required
+def email_recetor(nota_id):
+    """Rascunho de e-mail (.eml, não enviado) para o recetor, com o PDF da
+    nota concluída em anexo — o Outlook abre-o pronto a enviar."""
+    from flask import Response
+
+    nota = _obter_ou_404(nota_id)
+    if not _pode_ver(nota) or nota.estado != EstadoNota.CONCLUIDA.value:
+        abort(404)
+    conteudo = notificacoes.eml_para_recetor("saida", nota, current_user)
+    if conteudo is None:
+        abort(404)
+    nome = f"nota_{nota.numero_referencia or nota.id}.eml"
+    return Response(
+        conteudo,
+        mimetype="message/rfc822",
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
+    )
+
+
 @bp.route("/<nota_id>/submeter", methods=["POST"])
 @login_required
 def submeter(nota_id):
