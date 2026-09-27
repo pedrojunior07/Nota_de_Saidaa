@@ -1980,3 +1980,19 @@ table tbody tr.linha-clicavel:focus-visible { outline: none; }
 
 /* Paginação parcial: painel da tabela durante a troca */
 .panel.a-carregar { opacity: .6; transition: opacity .12s ease; pointer-events: none; }
+
+/* Relatório: cards por tipo de equipamento (clicáveis para filtrar) */
+.rel-cards-tipo {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+.rel-card { color: inherit; text-decoration: none; }
+a.stat-card-link.rel-card.is-active {
+    background: var(--secondary);
+    border-color: var(--secondary);
+    box-shadow: 0 6px 16px rgba(0, 81, 255, .25);
+}
+a.stat-card-link.rel-card.is-active small,
+a.stat-card-link.rel-card.is-active strong { color: #fff; }
+a.stat-card-link.rel-card.is-active .stat-icon { background: rgba(255, 255, 255, .18); color: #fff; }

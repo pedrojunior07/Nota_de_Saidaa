@@ -128,11 +128,10 @@ def gerar_pdf(rel: Relatorio, gerado_por: str, gerado_em: str, origem: str = "Se
     # -- resumo ---------------------------------------------------------------
     kpis = [
         (str(rel.total_equipamentos), "Equipamentos entregues"),
-        (str(rel.total_notas), "Notas concluídas"),
         (str(rel.total_colaboradores), "Colaboradores"),
     ]
     celulas = [[Paragraph(v, est["kpi_v"]) for v, _ in kpis], [Paragraph(r, est["kpi_r"]) for _, r in kpis]]
-    resumo = Table(celulas, colWidths=[util / 3] * 3)
+    resumo = Table(celulas, colWidths=[util / 2] * 2)
     resumo.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), 0.6, LINHA),
         ("LINEAFTER", (0, 0), (-2, -1), 0.6, LINHA),

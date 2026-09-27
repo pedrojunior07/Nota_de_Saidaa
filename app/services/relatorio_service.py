@@ -38,6 +38,21 @@ PERIODOS = {
 
 FILTROS_TEXTO = ("tipo", "departamento", "local", "motivo", "tecnico")
 
+ICONES_TIPO = {
+    "Computador Portátil": "bi-laptop",
+    "Computador Desktop": "bi-pc-display",
+    "PC": "bi-pc-display-horizontal",
+    "Monitor": "bi-display",
+    "Tablet": "bi-tablet",
+    "Celular": "bi-phone",
+    "Mouse": "bi-mouse",
+    "Teclado": "bi-keyboard",
+    "Carregador": "bi-plug",
+    "Pasta": "bi-briefcase",
+    "Headset": "bi-headset",
+}
+ICONE_TIPO_OMISSAO = "bi-box-seam"
+
 
 # ---------------------------------------------------------------------------
 # Período
@@ -108,6 +123,9 @@ class Relatorio:
     filtros: dict
     linhas: list = field(default_factory=list)       # uma por unidade entregue
     opcoes: dict = field(default_factory=dict)       # valores para os filtros
+    # Contagem por tipo SEM o filtro de tipo (mas com os restantes), para os
+    # cards: ao escolher um tipo, os outros continuam visíveis.
+    cards_tipo: list = field(default_factory=list)
 
     # -- resumo ------------------------------------------------------------
     @property
@@ -184,6 +202,13 @@ def gerar(tipo: str, inicio: date, fim: date, filtros: dict | None = None) -> Re
     # para nunca oferecer uma escolha que dá zero resultados.
     opcoes = {k: sorted({l[k] for l in no_periodo if l[k]}, key=str.lower) for k in FILTROS_TEXTO}
 
-    linhas = [l for l in no_periodo if all(not v or l[k] == v for k, v in filtros.items())]
+    def _passa(linha, ignorar=None):
+        return all(not v or linha[k] == v for k, v in filtros.items() if k != ignorar)
+
+    linhas = [l for l in no_periodo if _passa(l)]
     linhas.sort(key=lambda l: (l["data"], l["referencia"]), reverse=True)
-    return Relatorio(tipo=tipo, inicio=inicio, fim=fim, filtros=filtros, linhas=linhas, opcoes=opcoes)
+    por_tipo = Counter(l["tipo"] for l in no_periodo if _passa(l, ignorar="tipo"))
+    cards_tipo = [{"nome": n, "quantidade": q}
+                  for n, q in sorted(por_tipo.items(), key=lambda kv: (-kv[1], kv[0].lower()))]
+    return Relatorio(tipo=tipo, inicio=inicio, fim=fim, filtros=filtros, linhas=linhas,
+                     opcoes=opcoes, cards_tipo=cards_tipo)

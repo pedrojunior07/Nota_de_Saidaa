@@ -50,20 +50,34 @@
     </form>
 </div>
 
-<div class="row g-3 stat-grid mb-3">
-    <div class="col-12 col-md-4"><div class="stat-card">
-        <span class="stat-icon navy"><i class="bi bi-laptop"></i></span>
-        <div><small>Equipamentos entregues</small><strong>{{ rel.total_equipamentos }}</strong></div>
-    </div></div>
-    <div class="col-12 col-md-4"><div class="stat-card">
-        <span class="stat-icon"><i class="bi bi-journal-check"></i></span>
-        <div><small>Notas concluídas</small><strong>{{ rel.total_notas }}</strong></div>
-    </div></div>
-    <div class="col-12 col-md-4"><div class="stat-card">
+{# Cards: total (limpa o filtro de tipo), colaboradores e um por tipo de
+   equipamento — clicar filtra por esse tipo (clicar de novo limpa); o tipo
+   filtrado fica em destaque azul. #}
+{% set _sem_tipo = dict(args) %}{% set _ = _sem_tipo.pop('tipo', none) %}
+<div class="row g-3 stat-grid mb-2">
+    <div class="col-6 col-md-3"><a class="stat-card stat-card-link rel-card {{ 'is-active' if not rel.filtros.tipo }}"
+            href="{{ url_for('relatorios.index', **_sem_tipo) }}" title="Todos os tipos">
+        <span class="stat-icon navy"><i class="bi bi-boxes"></i></span>
+        <div><small>Equipamentos entregues</small><strong>{{ rel.cards_tipo | sum(attribute='quantidade') }}</strong></div>
+    </a></div>
+    <div class="col-6 col-md-3"><div class="stat-card">
         <span class="stat-icon"><i class="bi bi-people"></i></span>
         <div><small>Colaboradores</small><strong>{{ rel.total_colaboradores }}</strong></div>
     </div></div>
 </div>
+{% if rel.cards_tipo %}
+<div class="rel-cards-tipo mb-3">
+    {% for card in rel.cards_tipo %}
+    {% set _ativo = rel.filtros.tipo == card.nome %}
+    <a class="stat-card stat-card-link rel-card rel-card-tipo {{ 'is-active' if _ativo }}"
+       href="{{ url_for('relatorios.index', **(_sem_tipo if _ativo else dict(_sem_tipo, tipo=card.nome))) }}"
+       title="{{ 'Limpar filtro' if _ativo else 'Filtrar por ' ~ card.nome }}" {% if _ativo %}aria-current="true"{% endif %}>
+        <span class="stat-icon"><i class="bi {{ icones_tipo.get(card.nome, icone_omissao) }}"></i></span>
+        <div><small>{{ card.nome }}</small><strong>{{ card.quantidade }}</strong></div>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
 
 <div class="rel-navegacao" aria-label="Navegação">
     <button type="button" class="sig-icon-btn" onclick="history.back()" title="Voltar" aria-label="Voltar">
