@@ -82,7 +82,7 @@ def extrair_itens(formulario):
             quantidade = 1
         itens.append(
             {
-                "tipo_item": tipo or "Outro",
+                "tipo_item": (tipo or "").strip(),
                 "destino": (destinos[i].strip() if i < len(destinos) else "") or None,
                 "descricao": descricao,
                 "numero_serie": (series[i].strip() if i < len(series) else "") or None,

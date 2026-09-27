@@ -248,6 +248,8 @@ def criar():
         faltam = campos_dinamicos_service.validar_obrigatorios("entrega", valores_extra)
         if not itens:
             flash("Adicione pelo menos um item.", "warning")
+        elif any(not item["tipo_item"] for item in itens):
+            flash("Seleccione o tipo de equipamento em todas as linhas.", "warning")
         elif faltam:
             flash("Preencha os campos obrigatórios: " + ", ".join(faltam) + ".", "warning")
         elif form.submeter.data and not current_user.assinatura_path:
@@ -325,6 +327,8 @@ def editar(nota_id):
         faltam = campos_dinamicos_service.validar_obrigatorios("entrega", valores_extra)
         if not itens:
             flash("Adicione pelo menos um item.", "warning")
+        elif any(not item["tipo_item"] for item in itens):
+            flash("Seleccione o tipo de equipamento em todas as linhas.", "warning")
         elif faltam:
             flash("Preencha os campos obrigatórios: " + ", ".join(faltam) + ".", "warning")
         else:

@@ -82,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabela.querySelectorAll(".linha-item").length === 1) {
                 linha.querySelectorAll("input, select").forEach((campo) => {
                     if (campo.name === "quantidade") campo.value = 1;
-                    else if (campo.name === "tipo_item") campo.value = "Outro";
+                    else if (campo.name === "tipo_item") campo.value = "";
                     else campo.value = "";
                 });
                 alternarSap(linha);
@@ -131,7 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const lerItens = () =>
         Array.from(tabela?.querySelectorAll(".linha-item") || []).map((linha) => ({
-            tipo_item: linha.querySelector('[name="tipo_item"]')?.value || "Outro",
+            tipo_item: linha.querySelector('[name="tipo_item"]')?.value || "",
             quantidade: linha.querySelector('[name="quantidade"]')?.value || "1",
             descricao_item: linha.querySelector('[name="descricao_item"]')?.value || "",
             numero_serie: linha.querySelector('[name="numero_serie"]')?.value || "",
@@ -181,7 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const campo = linha.querySelector(`[name="${nome}"]`);
                     if (campo) campo.value = v;
                 };
-                set("tipo_item", it.tipo_item || "Outro");
+                set("tipo_item", it.tipo_item || "");
                 set("quantidade", it.quantidade || "1");
                 set("descricao_item", it.descricao_item || "");
                 set("numero_serie", it.numero_serie || "");

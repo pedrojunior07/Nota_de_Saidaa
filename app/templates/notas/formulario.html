@@ -119,10 +119,15 @@
                                 <input type="number" name="quantidade" class="form-control" min="1" value="{{ item.quantidade or 1 }}">
                             </td>
                             <td>
-                                <select name="tipo_item" class="form-select">
+                                <select name="tipo_item" class="form-select" required>
+                                    <option value="" disabled {% if not item.tipo_item %}selected{% endif %}>Seleccione o tipo</option>
                                     {% for tipo in tipos_item %}
-                                    <option value="{{ tipo }}" {% if (item.tipo_item or 'Outro') == tipo %}selected{% endif %}>{{ tipo }}</option>
+                                    <option value="{{ tipo }}" {% if item.tipo_item == tipo %}selected{% endif %}>{{ tipo }}</option>
                                     {% endfor %}
+                                    {% if item.tipo_item and item.tipo_item not in tipos_item %}
+                                    {# tipo antigo, já fora da lista (ex.: «Outro») — mantém-se até ser trocado #}
+                                    <option value="{{ item.tipo_item }}" selected>{{ item.tipo_item }}</option>
+                                    {% endif %}
                                 </select>
                             </td>
                             <td><input type="text" name="descricao_item" class="form-control" required value="{{ item.descricao }}" placeholder="Ex.: Lenovo Thinkpad T14"></td>
@@ -184,9 +189,10 @@
             <input type="number" name="quantidade" class="form-control" min="1" value="1">
         </td>
         <td>
-            <select name="tipo_item" class="form-select">
+            <select name="tipo_item" class="form-select" required>
+                <option value="" disabled selected>Seleccione o tipo</option>
                 {% for tipo in tipos_item %}
-                <option value="{{ tipo }}" {% if tipo == 'Outro' %}selected{% endif %}>{{ tipo }}</option>
+                <option value="{{ tipo }}">{{ tipo }}</option>
                 {% endfor %}
             </select>
         </td>

@@ -40,7 +40,7 @@ def _nota_exemplo_saida():
     nota.criador = None
     nota.aprovador = None
     nota.itens = [
-        ItemNota(descricao="Descrição do equipamento", numero_serie="XXXXXXX", quantidade=1, tipo_item="Outro")
+        ItemNota(descricao="Descrição do equipamento", numero_serie="XXXXXXX", quantidade=1, tipo_item="Computador Portátil")
     ]
     return nota
 
@@ -70,7 +70,7 @@ def _nota_exemplo_entrega():
     nota.itens = [
         ItemEntrega(
             descricao="Descrição do equipamento", destino="Balcão / Filial",
-            numero_serie="XXXXXXX", quantidade=1, tipo_item="Outro",
+            numero_serie="XXXXXXX", quantidade=1, tipo_item="Computador Portátil",
         )
     ]
     return nota

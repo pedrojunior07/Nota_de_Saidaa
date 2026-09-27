@@ -83,7 +83,7 @@ def extrair_itens(formulario):
             continue
         itens.append(
             {
-                "tipo_item": tipo or "Outro",
+                "tipo_item": (tipo or "").strip(),
                 "descricao": descricao,
                 "numero_serie": serie or None,
                 "numero_sap": sap or None,

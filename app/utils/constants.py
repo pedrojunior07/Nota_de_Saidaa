@@ -58,7 +58,6 @@ TIPOS_ITEM = [
     "Carregador",
     "Pasta",
     "Headset",
-    "Outro",
 ]
 
 # Tipos de item que, além do número de série (obrigatório), também podem
