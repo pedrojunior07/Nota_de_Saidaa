@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import estado_badge, render_paginacao_compacta %}
+{% from "macros.html" import estado_badge, render_paginacao_compacta, seletor_linhas %}
 {% block title %}Notas de Saída{% endblock %}
 {% block heading %}Notas de saída{% endblock %}
 {% block subtitle %}Pesquisa por referência Remedy, colaborador, estado ou período.{% endblock %}
@@ -115,6 +115,7 @@
 </div>
 
 <div class="panel">
+    {{ seletor_linhas("notas.listar") }}
     <div class="table-responsive">
         <table class="table table-corporate align-middle mb-0">
             <thead>

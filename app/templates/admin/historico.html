@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import render_paginacao_compacta %}
+{% from "macros.html" import render_paginacao_compacta, seletor_linhas %}
 {% block title %}Histórico{% endblock %}
 {% block heading %}Histórico de auditoria{% endblock %}
 {% block subtitle %}Registo completo das ações efetuadas sobre as notas de saída.{% endblock %}
@@ -14,6 +14,7 @@
     </form>
 </div>
 <div class="panel">
+    {{ seletor_linhas("admin.historico") }}
     <div class="table-responsive">
         <table class="table table-corporate align-middle mb-0">
             <thead>

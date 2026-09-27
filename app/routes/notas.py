@@ -30,6 +30,7 @@ from app.services import campos_dinamicos_service, directory_service, nota_servi
 from app.utils.constants import ESTADOS_LABEL, TIPOS_ITEM, TIPOS_ITEM_COM_SAP, EstadoNota, Perfil
 from app.utils.decorators import perfis_requeridos
 from app.utils.assinatura import ler_posicao, nome_ficheiro, url_assinatura
+from app.utils.pagination import paginar_lista, paginar_query
 
 bp = Blueprint("notas", __name__, url_prefix="/notas")
 
@@ -120,7 +121,6 @@ def listar():
     df = datetime.strptime(data_fim, "%Y-%m-%d").date() if data_fim else None
 
     if nota_service._mongo_notas_ativo():
-        from app.utils.pagination import SimplePagination
 
         encontradas = nota_service.pesquisar_mongo(
             _consulta_listagem(),
@@ -130,7 +130,7 @@ def listar():
             data_inicio=di,
             data_fim=df,
         )
-        paginacao = SimplePagination(encontradas, pagina, current_app.config["ITEMS_PER_PAGE"])
+        paginacao = paginar_lista(encontradas, pagina)
         stats = nota_service.estatisticas_mongo(_consulta_listagem())
     else:
         consulta = nota_service.pesquisar(
@@ -141,9 +141,7 @@ def listar():
             data_inicio=di,
             data_fim=df,
         )
-        paginacao = consulta.paginate(
-            page=pagina, per_page=current_app.config["ITEMS_PER_PAGE"], error_out=False
-        )
+        paginacao = paginar_query(consulta, pagina)
         stats = nota_service.estatisticas(_consulta_listagem())
     return render_template(
         "notas/listar.html",

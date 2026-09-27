@@ -35,6 +35,7 @@ from app.utils.assinatura import (
 )
 from app.utils.constants import ESTADOS_LABEL, TIPOS_ITEM, TIPOS_ITEM_COM_SAP, EstadoNota, Perfil
 from app.utils.decorators import perfis_requeridos
+from app.utils.pagination import paginar_lista, paginar_query
 
 bp = Blueprint("entrega", __name__, url_prefix="/entrega")
 
@@ -163,7 +164,6 @@ def listar():
     df = datetime.strptime(data_fim, "%Y-%m-%d").date() if data_fim else None
 
     if entrega_service._mongo_entrega_ativo():
-        from app.utils.pagination import SimplePagination
 
         encontradas = entrega_service.pesquisar_mongo(
             _consulta_listagem(),
@@ -173,7 +173,7 @@ def listar():
             data_inicio=di,
             data_fim=df,
         )
-        paginacao = SimplePagination(encontradas, pagina, current_app.config["ITEMS_PER_PAGE"])
+        paginacao = paginar_lista(encontradas, pagina)
         stats = entrega_service.estatisticas_mongo(_consulta_listagem())
     else:
         consulta = entrega_service.pesquisar(
@@ -184,9 +184,7 @@ def listar():
             data_inicio=di,
             data_fim=df,
         )
-        paginacao = consulta.paginate(
-            page=pagina, per_page=current_app.config["ITEMS_PER_PAGE"], error_out=False
-        )
+        paginacao = paginar_query(consulta, pagina)
         stats = entrega_service.estatisticas(_consulta_listagem())
     return render_template(
         "entrega/listar.html",

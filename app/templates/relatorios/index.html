@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import render_paginacao_compacta %}
+{% from "macros.html" import render_paginacao_compacta, seletor_linhas %}
 {% block title %}Relatório de equipamentos{% endblock %}
 {% block heading %}Relatório de equipamentos entregues{% endblock %}
 {% block subtitle %}{{ modulo.nome }} · notas concluídas de {{ rel.inicio.strftime('%d/%m/%Y') }} a {{ rel.fim.strftime('%d/%m/%Y') }}.{% endblock %}
@@ -100,7 +100,10 @@
 </div>
 
 <div class="panel">
-    <h2 class="h6 mb-3">Detalhe dos equipamentos entregues</h2>
+    <div class="tabela-cabecalho">
+        <h2 class="h6">Detalhe dos equipamentos entregues</h2>
+        {{ seletor_linhas("relatorios.index") }}
+    </div>
     <div class="table-responsive">
         <table class="table table-sm table-hover align-middle mb-0 rel-detalhe">
             <thead><tr>

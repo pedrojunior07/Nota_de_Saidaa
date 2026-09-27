@@ -33,3 +33,38 @@ class SimplePagination:
     @property
     def next_num(self):
         return self.page + 1 if self.has_next else None
+
+
+# ---------------------------------------------------------------------------
+# Nº de linhas por página escolhido pelo utilizador (?por_pagina=5|10|15|todas)
+# ---------------------------------------------------------------------------
+OPCOES_POR_PAGINA = (5, 10, 15)
+POR_PAGINA_OMISSAO = 10
+
+
+def por_pagina_pedido(total: int | None = None) -> int:
+    """Linhas por página pedidas no URL. «todas» devolve o total (mínimo 1);
+    qualquer valor fora das opções cai na omissão (10)."""
+    from flask import request
+
+    valor = (request.args.get("por_pagina") or "").strip().lower()
+    if valor == "todas":
+        return max(int(total or 0), 1)
+    try:
+        numero = int(valor)
+    except ValueError:
+        return POR_PAGINA_OMISSAO
+    return numero if numero in OPCOES_POR_PAGINA else POR_PAGINA_OMISSAO
+
+
+def paginar_lista(itens: list, pagina) -> "SimplePagination":
+    return SimplePagination(itens, pagina, por_pagina_pedido(len(itens)))
+
+
+def paginar_query(consulta, pagina):
+    """Pagination do Flask-SQLAlchemy com o nº de linhas escolhido."""
+    from flask import request
+
+    valor = (request.args.get("por_pagina") or "").strip().lower()
+    total = consulta.order_by(None).count() if valor == "todas" else None
+    return consulta.paginate(page=pagina, per_page=por_pagina_pedido(total), error_out=False)

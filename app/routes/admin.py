@@ -12,6 +12,7 @@ from app.models.user import User
 from app.services import campos_dinamicos_service
 from app.utils.constants import PERFIS_LABEL, Perfil
 from app.utils.decorators import perfis_requeridos
+from app.utils.pagination import paginar_lista, paginar_query
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -131,16 +132,15 @@ def utilizadores():
     pesquisa = request.args.get("q", "").strip()
     if _mongo_users_ativo():
         from app.repositories.users import UserRepository
-        from app.utils.pagination import SimplePagination
 
         utilizadores_lista = UserRepository().listar(pesquisa or None)
-        paginacao = SimplePagination(utilizadores_lista, pagina, 12)
+        paginacao = paginar_lista(utilizadores_lista, pagina)
     else:
         consulta = User.query.order_by(User.nome.asc())
         if pesquisa:
             like = f"%{pesquisa}%"
             consulta = consulta.filter(db.or_(User.nome.ilike(like), User.username.ilike(like)))
-        paginacao = consulta.paginate(page=pagina, per_page=12, error_out=False)
+        paginacao = paginar_query(consulta, pagina)
     return render_template(
         "admin/utilizadores.html", paginacao=paginacao, pesquisa=pesquisa, perfis=PERFIS_LABEL
     )
@@ -359,9 +359,7 @@ def historico():
         consulta = consulta.filter(Historico.acao.ilike(f"%{acao}%"))
 
     consulta = consulta.order_by(Historico.data_hora.desc())
-    paginacao = consulta.paginate(
-        page=pagina, per_page=current_app.config["ITEMS_PER_PAGE"], error_out=False
-    )
+    paginacao = paginar_query(consulta, pagina)
     return render_template(
         "admin/historico.html",
         paginacao=paginacao,

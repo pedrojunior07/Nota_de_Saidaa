@@ -1,3 +1,22 @@
+{# Seletor «Linhas: 5 / 10 / 15 / Todas» — canto superior direito da tabela,
+   alinhado com a paginação (canto inferior direito). Mantém os filtros e
+   volta à página 1. #}
+{% macro seletor_linhas(endpoint) %}
+{% set atual = request.args.get('por_pagina', '10') %}
+<div class="tabela-linhas">
+    <label for="seletorLinhas_{{ endpoint | replace('.', '_') }}">Linhas</label>
+    <select class="form-select form-select-sm" id="seletorLinhas_{{ endpoint | replace('.', '_') }}"
+            onchange="window.location.href = this.value" aria-label="Linhas por página">
+        {% for valor, rotulo in [('5', '5'), ('10', '10'), ('15', '15'), ('todas', 'Todas')] %}
+        {% set qs = request.args.to_dict() %}
+        {% set _ = qs.pop('pagina', none) %}
+        {% set _ = qs.update({'por_pagina': valor}) %}
+        <option value="{{ url_for(endpoint, **qs) }}" {{ 'selected' if atual == valor }}>{{ rotulo }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endmacro %}
+
 {% macro render_paginacao_compacta(page_obj, endpoint) %}
 {% if page_obj.pages > 1 %}
 {% set qs = request.args.to_dict() %}

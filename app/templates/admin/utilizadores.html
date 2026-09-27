@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import render_paginacao %}
+{% from "macros.html" import seletor_linhas, render_paginacao_compacta %}
 {% block title %}Utilizadores{% endblock %}
 {% block heading %}Utilizadores{% endblock %}
 {% block subtitle %}Gestão de contas e perfis de acesso.{% endblock %}
@@ -16,6 +16,7 @@
 </div>
 
 <div class="panel">
+    {{ seletor_linhas("admin.utilizadores") }}
     <div class="table-responsive">
         <table class="table table-corporate align-middle mb-0">
             <thead>
@@ -79,6 +80,6 @@
             </tbody>
         </table>
     </div>
-    {{ render_paginacao(paginacao, "admin.utilizadores") }}
+    {{ render_paginacao_compacta(paginacao, "admin.utilizadores") }}
 </div>
 {% endblock %}

@@ -13,6 +13,7 @@ from app.services import entrega_service, nota_service, notificacoes
 from app.utils.assinatura import ler_posicao
 from app.utils.constants import EstadoNota, Perfil
 from app.utils.decorators import perfis_requeridos
+from app.utils.pagination import paginar_lista
 
 bp = Blueprint("aprovacoes", __name__, url_prefix="/aprovacoes")
 
@@ -59,7 +60,12 @@ def listar():
         )
     pendentes = [("saida", n) for n in saidas] + [("entrega", n) for n in entregas]
     pendentes.sort(key=lambda par: par[1].data_criacao)
-    return render_template("aprovacoes/listar.html", pendentes=pendentes)
+    try:
+        pagina = int(request.args.get("pagina", 1))
+    except ValueError:
+        pagina = 1
+    paginacao = paginar_lista(pendentes, pagina)
+    return render_template("aprovacoes/listar.html", pendentes=paginacao.items, paginacao=paginacao)
 
 
 def _processar_rejeitar(tipo, servico, nota, form, comentario, voltar):

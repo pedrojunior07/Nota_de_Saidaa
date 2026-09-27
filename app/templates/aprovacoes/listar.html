@@ -1,11 +1,12 @@
 {% extends "base.html" %}
-{% from "macros.html" import estado_badge %}
+{% from "macros.html" import estado_badge, seletor_linhas, render_paginacao_compacta %}
 {% block title %}Pendentes de aprovação{% endblock %}
 {% block heading %}Pendentes de aprovação{% endblock %}
 {% block subtitle %}Notas submetidas pelos técnicos à espera da sua decisão.{% endblock %}
 
 {% block content %}
 <div class="panel">
+    {{ seletor_linhas("aprovacoes.listar") }}
     <div class="table-responsive">
         <table class="table table-corporate align-middle mb-0">
             <thead>
@@ -40,5 +41,6 @@
             </tbody>
         </table>
     </div>
+    {{ render_paginacao_compacta(paginacao, "aprovacoes.listar") }}
 </div>
 {% endblock %}
