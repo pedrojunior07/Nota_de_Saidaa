@@ -6,15 +6,14 @@ resto da plataforma; o PDF usa exatamente os mesmos filtros do ecrã.
 
 from datetime import date
 
-from flask import Blueprint, Response, render_template, request, session
+from flask import Blueprint, Response, current_app, render_template, request, session
 from flask_login import current_user, login_required
 
 from app.services import relatorio_service
+from app.utils.pagination import SimplePagination
 from app.utils.tempo import agora
 
 bp = Blueprint("relatorios", __name__, url_prefix="/relatorios")
-
-POR_PAGINA = 50
 
 
 def _data(nome):
@@ -38,11 +37,11 @@ def _pedido():
 @login_required
 def index():
     tipo, periodo, rel = _pedido()
-    total_paginas = max(1, -(-len(rel.linhas) // POR_PAGINA))
     try:
-        pagina = min(max(1, int(request.args.get("pagina", 1))), total_paginas)
+        pagina = int(request.args.get("pagina", 1))
     except ValueError:
         pagina = 1
+    paginacao = SimplePagination(rel.linhas, pagina, current_app.config["ITEMS_PER_PAGE"])
     args = request.args.to_dict()
     args.pop("pagina", None)
     return render_template(
@@ -51,9 +50,7 @@ def index():
         modulo=relatorio_service.MODULOS[tipo],
         periodo=periodo,
         periodos=relatorio_service.PERIODOS,
-        linhas_pagina=rel.linhas[(pagina - 1) * POR_PAGINA: pagina * POR_PAGINA],
-        pagina=pagina,
-        total_paginas=total_paginas,
+        paginacao=paginacao,
         args=args,
     )
 

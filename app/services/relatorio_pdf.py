@@ -147,13 +147,13 @@ def gerar_pdf(rel: Relatorio, gerado_por: str, gerado_em: str, origem: str = "Se
 
     # -- por tipo e por departamento (lado a lado) ------------------------------
     def _grupo(titulo, grupos, largura):
-        dados = [[titulo, "Qtd.", "Notas", "%"]] + [
-            [Paragraph(g["nome"], est["celula"]), g["quantidade"], g["notas"], f"{g['percentagem']:.1f}%"]
+        dados = [[titulo, "Qtd.", "Notas"]] + [
+            [Paragraph(g["nome"], est["celula"]), g["quantidade"], g["notas"]]
             for g in grupos
-        ] or [[titulo, "Qtd.", "Notas", "%"]]
+        ]
         if not grupos:
-            dados.append(["Sem registos", "", "", ""])
-        return _tabela(dados, [largura - 150, 50, 50, 50], alinhar_direita=(1, 2, 3))
+            dados.append(["Sem registos", "", ""])
+        return _tabela(dados, [largura - 100, 50, 50], alinhar_direita=(1, 2))
 
     meia = (util - 8 * mm) / 2
     lado_a_lado = Table(

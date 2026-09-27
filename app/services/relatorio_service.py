@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 from app.utils.constants import EstadoNota
 
@@ -32,8 +32,6 @@ MODULOS = {
 
 PERIODOS = {
     "mes": "Este mês",
-    "mes_anterior": "Mês passado",
-    "trimestre": "Este trimestre",
     "ano": "Este ano",
     "personalizado": "Personalizado",
 }
@@ -47,12 +45,6 @@ FILTROS_TEXTO = ("tipo", "departamento", "local", "motivo", "tecnico")
 def intervalo(periodo: str, inicio: date | None, fim: date | None, hoje: date | None = None):
     """Devolve (inicio, fim) inclusivos para o período escolhido."""
     hoje = hoje or date.today()
-    if periodo == "mes_anterior":
-        fim_ant = hoje.replace(day=1) - timedelta(days=1)
-        return fim_ant.replace(day=1), fim_ant
-    if periodo == "trimestre":
-        mes_ini = 3 * ((hoje.month - 1) // 3) + 1
-        return hoje.replace(month=mes_ini, day=1), hoje
     if periodo == "ano":
         return hoje.replace(month=1, day=1), hoje
     if periodo == "personalizado":
@@ -136,10 +128,8 @@ class Relatorio:
             nome = l[chave] or "—"
             qtd[nome] += l["quantidade"]
             notas[nome].add(l["nota_id"])
-        total = self.total_equipamentos or 1
         return [
-            {"nome": nome, "quantidade": q, "notas": len(notas[nome]),
-             "percentagem": round(100 * q / total, 1)}
+            {"nome": nome, "quantidade": q, "notas": len(notas[nome])}
             for nome, q in sorted(qtd.items(), key=lambda kv: (-kv[1], kv[0]))
         ]
 
