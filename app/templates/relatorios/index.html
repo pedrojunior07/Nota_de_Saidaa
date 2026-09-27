@@ -5,6 +5,11 @@
 {% block subtitle %}{{ modulo.nome }} · notas concluídas de {{ rel.inicio.strftime('%d/%m/%Y') }} a {{ rel.fim.strftime('%d/%m/%Y') }}.{% endblock %}
 
 {% block content %}
+<div class="d-flex justify-content-end mb-3">
+    <a class="btn btn-outline-navy" href="{{ url_for('relatorios.pdf', **args) }}" id="btnExportarPdf">
+        <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Exportar PDF
+    </a>
+</div>
 <div class="panel mb-3">
     <form method="get" class="filter-form" id="formRelatorio">
         <div class="row g-2 align-items-end">
@@ -41,9 +46,6 @@
         <div class="mt-3 d-flex flex-wrap gap-2">
             <button class="btn btn-navy" type="submit"><i class="bi bi-funnel"></i> Aplicar</button>
             <a class="btn btn-outline-secondary" href="{{ url_for('relatorios.index') }}">Limpar</a>
-            <a class="btn btn-outline-navy ms-auto" href="{{ url_for('relatorios.pdf', **args) }}">
-                <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
-            </a>
         </div>
     </form>
 </div>
