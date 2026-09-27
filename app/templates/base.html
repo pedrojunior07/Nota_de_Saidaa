@@ -40,6 +40,10 @@
                 </a>
                 {% endif %}
 
+                <a href="{{ url_for('relatorios.index') }}" class="nav-link {% if request.blueprint == 'relatorios' %}active{% endif %}">
+                    <i class="bi bi-clipboard-data"></i> Relatórios
+                </a>
+
                 {% if current_user.pode_gerir_plataforma() %}
                 <div class="nav-section">Administração</div>
                 <a href="{{ url_for('admin.utilizadores') }}" class="nav-link {% if request.endpoint and 'utilizador' in request.endpoint %}active{% endif %}">
@@ -65,6 +69,10 @@
                     Notas de saída
                 </a>
                 {% endif %}
+
+                <a href="{{ url_for('relatorios.index') }}" class="nav-link {% if request.blueprint == 'relatorios' %}active{% endif %}">
+                    <i class="bi bi-clipboard-data"></i> Relatórios
+                </a>
 
                 {% if current_user.pode_gerir_plataforma() %}
                 <div class="nav-section">Administração</div>

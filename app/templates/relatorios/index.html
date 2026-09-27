@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Relatório de equipamentos{% endblock %}
+{% block heading %}Relatório de equipamentos entregues{% endblock %}
+{% block subtitle %}{{ modulo.nome }} · notas concluídas de {{ rel.inicio.strftime('%d/%m/%Y') }} a {{ rel.fim.strftime('%d/%m/%Y') }}.{% endblock %}
+
+{% block content %}
+<div class="panel mb-3">
+    <form method="get" class="filter-form" id="formRelatorio">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label" for="relPeriodo">Período</label>
+                <select class="form-select" name="periodo" id="relPeriodo">
+                    {% for valor, rotulo in periodos.items() %}
+                    <option value="{{ valor }}" {{ 'selected' if periodo == valor }}>{{ rotulo }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 rel-datas" {{ '' if periodo == 'personalizado' else 'hidden' }}>
+                <label class="form-label" for="relInicio">De</label>
+                <input type="date" class="form-control" name="inicio" id="relInicio" value="{{ rel.inicio.isoformat() }}">
+            </div>
+            <div class="col-md-2 rel-datas" {{ '' if periodo == 'personalizado' else 'hidden' }}>
+                <label class="form-label" for="relFim">Até</label>
+                <input type="date" class="form-control" name="fim" id="relFim" value="{{ rel.fim.isoformat() }}">
+            </div>
+        </div>
+        <div class="row g-2 align-items-end mt-0">
+            {% for chave, rotulo in [('tipo','Tipo de equipamento'), ('departamento','Departamento'), ('local','Local'), ('motivo','Motivo'), ('tecnico','Técnico')] %}
+            <div class="col-md">
+                <label class="form-label" for="rel_{{ chave }}">{{ rotulo }}</label>
+                <select class="form-select" name="{{ chave }}" id="rel_{{ chave }}">
+                    <option value="">Todos</option>
+                    {% for valor in rel.opcoes[chave] %}
+                    <option value="{{ valor }}" {{ 'selected' if rel.filtros[chave] == valor }}>{{ valor }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="mt-3 d-flex flex-wrap gap-2">
+            <button class="btn btn-navy" type="submit"><i class="bi bi-funnel"></i> Aplicar</button>
+            <a class="btn btn-outline-secondary" href="{{ url_for('relatorios.index') }}">Limpar</a>
+            <a class="btn btn-outline-navy ms-auto" href="{{ url_for('relatorios.pdf', **args) }}">
+                <i class="bi bi-file-earmark-pdf"></i> Exportar PDF
+            </a>
+        </div>
+    </form>
+</div>
+
+<div class="row g-3 stat-grid mb-3">
+    <div class="col-6 col-xl-3"><div class="stat-card">
+        <span class="stat-icon navy"><i class="bi bi-laptop"></i></span>
+        <div><small>Equipamentos entregues</small><strong>{{ rel.total_equipamentos }}</strong></div>
+    </div></div>
+    <div class="col-6 col-xl-3"><div class="stat-card">
+        <span class="stat-icon"><i class="bi bi-journal-check"></i></span>
+        <div><small>Notas concluídas</small><strong>{{ rel.total_notas }}</strong></div>
+    </div></div>
+    <div class="col-6 col-xl-3"><div class="stat-card">
+        <span class="stat-icon"><i class="bi bi-people"></i></span>
+        <div><small>Colaboradores</small><strong>{{ rel.total_colaboradores }}</strong></div>
+    </div></div>
+    <div class="col-6 col-xl-3"><div class="stat-card">
+        <span class="stat-icon"><i class="bi bi-trophy"></i></span>
+        {% set mais = rel.tipo_mais_entregue %}
+        <div><small>Tipo mais entregue</small><strong class="rel-kpi-texto">{{ mais.nome ~ ' (' ~ mais.quantidade ~ ')' if mais else '—' }}</strong></div>
+    </div></div>
+</div>
+
+<div class="row g-3 mb-3">
+    {% for titulo, grupos, chave in [('Por tipo de equipamento', rel.por_tipo, 'tipo'), ('Por departamento', rel.por_departamento, 'departamento')] %}
+    <div class="col-lg-6">
+        <div class="panel h-100">
+            <h2 class="h6 mb-3">{{ titulo }}</h2>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>{{ 'Tipo' if chave == 'tipo' else 'Departamento' }}</th><th class="text-end">Qtd.</th><th class="text-end">Notas</th><th class="text-end">%</th></tr></thead>
+                    <tbody>
+                    {% for g in grupos %}
+                    <tr>
+                        <td><a href="{{ url_for('relatorios.index', **dict(args, **{chave: g.nome})) }}" title="Filtrar por {{ g.nome }}">{{ g.nome }}</a></td>
+                        <td class="text-end fw-semibold">{{ g.quantidade }}</td>
+                        <td class="text-end">{{ g.notas }}</td>
+                        <td class="text-end">{{ '%.1f' % g.percentagem }}%</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="text-muted">Sem registos.</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="panel">
+    <h2 class="h6 mb-3">Detalhe dos equipamentos entregues</h2>
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0 rel-detalhe">
+            <thead><tr>
+                <th>Data</th><th>Ref. Remedy</th><th>Colaborador</th><th>Departamento</th><th>Tipo</th>
+                <th>Descrição</th><th>Nº de série</th><th>SAP</th><th class="text-end">Qtd.</th><th>Técnico</th>
+            </tr></thead>
+            <tbody>
+            {% for l in linhas_pagina %}
+            <tr class="clickable-row" onclick="location.href='{{ url_for(modulo.detalhe, nota_id=l.nota_id) }}'">
+                <td class="text-nowrap">{{ l.data.strftime('%d/%m/%Y') }}</td>
+                <td class="text-nowrap"><a href="{{ url_for(modulo.detalhe, nota_id=l.nota_id) }}">{{ l.referencia }}</a></td>
+                <td>{{ l.colaborador }}</td>
+                <td>{{ l.departamento }}</td>
+                <td>{{ l.tipo }}</td>
+                <td>{{ l.descricao }}</td>
+                <td>{{ l.numero_serie or '—' }}</td>
+                <td>{{ l.numero_sap or '—' }}</td>
+                <td class="text-end">{{ l.quantidade }}</td>
+                <td>{{ l.tecnico }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="10" class="text-muted">Sem equipamentos entregues neste período.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if total_paginas > 1 %}
+    <nav class="d-flex justify-content-between align-items-center mt-3 small">
+        <span class="text-muted">Página {{ pagina }} de {{ total_paginas }} · {{ rel.linhas | length }} linhas</span>
+        <span class="d-flex gap-2">
+            {% if pagina > 1 %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('relatorios.index', pagina=pagina-1, **args) }}">Anterior</a>{% endif %}
+            {% if pagina < total_paginas %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('relatorios.index', pagina=pagina+1, **args) }}">Seguinte</a>{% endif %}
+        </span>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Datas só no período "Personalizado"; escolher um período aplica logo.
+    document.getElementById("relPeriodo")?.addEventListener("change", (e) => {
+        const personalizado = e.target.value === "personalizado";
+        document.querySelectorAll(".rel-datas").forEach((el) => { el.hidden = !personalizado; });
+        if (!personalizado) e.target.form.submit();
+    });
+</script>
+{% endblock %}

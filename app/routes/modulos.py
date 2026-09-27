@@ -28,7 +28,7 @@ MODULOS = {
 }
 
 # Blueprints partilhados por todos os módulos (aprovações e administração).
-_BLUEPRINTS_PARTILHADOS = {"aprovacoes", "admin"}
+_BLUEPRINTS_PARTILHADOS = {"aprovacoes", "admin", "relatorios"}
 
 # blueprint → conjunto de módulos que o podem usar.
 BLUEPRINT_PARA_MODULO = {}
