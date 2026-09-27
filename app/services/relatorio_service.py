@@ -106,7 +106,7 @@ class Relatorio:
     inicio: date
     fim: date
     filtros: dict
-    linhas: list = field(default_factory=list)       # uma por item entregue
+    linhas: list = field(default_factory=list)       # uma por unidade entregue
     opcoes: dict = field(default_factory=dict)       # valores para os filtros
 
     # -- resumo ------------------------------------------------------------
@@ -163,6 +163,7 @@ def gerar(tipo: str, inicio: date, fim: date, filtros: dict | None = None) -> Re
         base = {
             "nota_id": nota.id,
             "data": entregue_em,
+            "numero_nota": getattr(nota, "numero_documento", "") or "",
             "referencia": getattr(nota, "numero_referencia", "") or "",
             "colaborador": _texto(getattr(nota, "funcionario", "")),
             "email": _texto(getattr(nota, "email_funcionario", "")),
@@ -172,14 +173,17 @@ def gerar(tipo: str, inicio: date, fim: date, filtros: dict | None = None) -> Re
             "tecnico": _nome_pessoa(getattr(nota, "criador", None)),
         }
         for item in getattr(nota, "itens", None) or []:
-            no_periodo.append({
+            unidade = {
                 **base,
                 "tipo": _texto(getattr(item, "tipo_item", "")) or "Outro",
                 "descricao": _texto(getattr(item, "descricao", "")),
                 "numero_serie": _texto(getattr(item, "numero_serie", "")),
                 "numero_sap": _texto(getattr(item, "numero_sap", "")),
-                "quantidade": int(getattr(item, "quantidade", 0) or 0),
-            })
+                "quantidade": 1,
+            }
+            # Uma linha por unidade: um item "5 × Mouse" passa a 5 linhas, para
+            # que cada linha do detalhe seja um equipamento e os totais batam.
+            no_periodo.extend(dict(unidade) for _ in range(int(getattr(item, "quantidade", 0) or 0)))
 
     # Opções dos filtros: valores existentes no período (antes de filtrar),
     # para nunca oferecer uma escolha que dá zero resultados.

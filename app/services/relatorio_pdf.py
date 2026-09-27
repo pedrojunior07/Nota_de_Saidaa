@@ -169,21 +169,20 @@ def gerar_pdf(rel: Relatorio, gerado_por: str, gerado_em: str, origem: str = "Se
     story.append(lado_a_lado)
 
     # -- detalhe -------------------------------------------------------------
-    cab = ["Data", "Ref. Remedy", "Colaborador", "Departamento", "Tipo", "Descrição",
-           "Nº de série", "SAP", "Qtd.", "Técnico"]
-    larg = [20 * mm, 29 * mm, 33 * mm, 26 * mm, 33 * mm, 40 * mm, 27 * mm, 17 * mm, 11 * mm]
+    cab = ["Data", "Nota", "Ref. Remedy", "Colaborador", "Departamento", "Tipo", "Descrição",
+           "Nº de série", "Técnico"]
+    larg = [20 * mm, 21 * mm, 30 * mm, 32 * mm, 26 * mm, 31 * mm, 38 * mm, 28 * mm]
     larg.append(util - sum(larg))
     c = est["celula"]
     dados = [cab] + [
-        [f"{l['data']:%d/%m/%Y}", l["referencia"], Paragraph(l["colaborador"], c),
+        [f"{l['data']:%d/%m/%Y}", l["numero_nota"], l["referencia"], Paragraph(l["colaborador"], c),
          Paragraph(l["departamento"], c), Paragraph(l["tipo"], c), Paragraph(l["descricao"], c),
-         Paragraph(l["numero_serie"] or "—", c), l["numero_sap"] or "—", l["quantidade"],
-         Paragraph(l["tecnico"], c)]
+         Paragraph(l["numero_serie"] or "—", c), Paragraph(l["tecnico"], c)]
         for l in rel.linhas
     ]
     if not rel.linhas:
-        dados.append(["Sem equipamentos entregues neste período."] + [""] * 9)
-    detalhe = _tabela(dados, larg, alinhar_direita=(8,),
+        dados.append(["Sem equipamentos entregues neste período."] + [""] * 8)
+    detalhe = _tabela(dados, larg,
                       estilos=[("SPAN", (0, 1), (-1, 1))] if not rel.linhas else None)
     story.append(KeepTogether([Paragraph("Detalhe dos equipamentos entregues", est["secao"])]))
     story.append(detalhe)

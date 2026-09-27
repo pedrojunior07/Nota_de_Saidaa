@@ -101,25 +101,25 @@
     <div class="table-responsive">
         <table class="table table-sm table-hover align-middle mb-0 rel-detalhe">
             <thead><tr>
-                <th>Data</th><th>Ref. Remedy</th><th>Colaborador</th><th>Departamento</th><th>Tipo</th>
-                <th>Descrição</th><th>Nº de série</th><th>SAP</th><th class="text-end">Qtd.</th><th>Técnico</th>
+                <th>Data</th><th>Nota</th><th>Ref. Remedy</th><th>Colaborador</th><th>Departamento</th>
+                <th>Tipo</th><th>Descrição</th><th>Nº de série</th><th>Técnico</th>
             </tr></thead>
             <tbody>
             {% for l in paginacao.items %}
-            <tr class="clickable-row" onclick="location.href='{{ url_for(modulo.detalhe, nota_id=l.nota_id) }}'">
+            <tr class="linha-clicavel" data-href="{{ url_for(modulo.detalhe, nota_id=l.nota_id) }}"
+                tabindex="0" role="link" aria-label="Abrir nota {{ l.numero_nota }}" title="Abrir nota {{ l.numero_nota }}">
                 <td class="text-nowrap">{{ l.data.strftime('%d/%m/%Y') }}</td>
-                <td class="text-nowrap"><a href="{{ url_for(modulo.detalhe, nota_id=l.nota_id) }}">{{ l.referencia }}</a></td>
+                <td class="text-nowrap fw-semibold">{{ l.numero_nota }}</td>
+                <td class="text-nowrap">{{ l.referencia }}</td>
                 <td>{{ l.colaborador }}</td>
                 <td>{{ l.departamento }}</td>
                 <td>{{ l.tipo }}</td>
                 <td>{{ l.descricao }}</td>
                 <td>{{ l.numero_serie or '—' }}</td>
-                <td>{{ l.numero_sap or '—' }}</td>
-                <td class="text-end">{{ l.quantidade }}</td>
                 <td>{{ l.tecnico }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="10" class="text-muted">Sem equipamentos entregues neste período.</td></tr>
+            <tr><td colspan="9" class="text-muted">Sem equipamentos entregues neste período.</td></tr>
             {% endfor %}
             </tbody>
         </table>
