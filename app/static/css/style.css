@@ -1974,3 +1974,6 @@ table tbody tr.linha-clicavel:focus-visible { outline: none; }
 .tabela-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .tabela-cabecalho h2 { margin: 0; }
 .tabela-cabecalho .tabela-linhas { margin-bottom: 0; }
+
+.historico-paginacao { align-items: center; gap: 12px; }
+.paginacao-info { font-size: 13px; color: var(--muted, #6c757d); }

@@ -21,16 +21,29 @@
 {% if page_obj.pages > 1 %}
 {% set qs = request.args.to_dict() %}
 {% set _ = qs.pop("pagina", none) %}
-<nav class="historico-paginacao" aria-label="Paginação do histórico">
+{% set atual = page_obj.page %}
+{% set ultima = page_obj.pages %}
+{% set inicio = (atual - 1) * page_obj.per_page + 1 %}
+{% set fim = [atual * page_obj.per_page, page_obj.total] | min %}
+<nav class="historico-paginacao" aria-label="Paginação">
+    <span class="paginacao-info">{{ inicio }}–{{ fim }} de {{ page_obj.total }}</span>
     <ul class="pagination pagination-sm mb-0">
         <li class="page-item {% if not page_obj.has_prev %}disabled{% endif %}">
             <a class="page-link" href="{{ url_for(endpoint, pagina=page_obj.prev_num, **qs) }}" aria-label="Página anterior" title="Página anterior">
                 <i class="bi bi-chevron-left"></i>
             </a>
         </li>
-        <li class="page-item active" aria-current="page">
-            <span class="page-link">{{ page_obj.page }}</span>
-        </li>
+        {# Números: primeira, última e as vizinhas da atual; «…» nos saltos. #}
+        {% for p in range(1, ultima + 1) %}
+            {% if p == 1 or p == ultima or (p >= atual - 1 and p <= atual + 1) %}
+            <li class="page-item {% if p == atual %}active{% endif %}" {% if p == atual %}aria-current="page"{% endif %}>
+                {% if p == atual %}<span class="page-link">{{ p }}</span>
+                {% else %}<a class="page-link" href="{{ url_for(endpoint, pagina=p, **qs) }}">{{ p }}</a>{% endif %}
+            </li>
+            {% elif p == atual - 2 or p == atual + 2 %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+        {% endfor %}
         <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
             <a class="page-link" href="{{ url_for(endpoint, pagina=page_obj.next_num, **qs) }}" aria-label="Página seguinte" title="Página seguinte">
                 <i class="bi bi-chevron-right"></i>

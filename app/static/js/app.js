@@ -177,3 +177,34 @@ document.addEventListener("DOMContentLoaded", () => {
         link.addEventListener("click", limparCacheFormularios);
     });
 });
+
+
+/* Tabelas: ao mudar o nº de linhas ou de página a página recarrega; guardamos
+ * a posição do scroll e repomo-la, para o utilizador ficar na mesma secção em
+ * vez de saltar para o topo. */
+(() => {
+    const CHAVE = "posicaoScrollTabela";
+    const guardar = () => {
+        try {
+            sessionStorage.setItem(CHAVE, JSON.stringify({ caminho: location.pathname, y: window.scrollY }));
+        } catch (_e) { /* storage indisponível: ignora */ }
+    };
+    document.addEventListener("change", (ev) => {
+        if (ev.target.closest(".tabela-linhas select")) guardar();
+    }, true);
+    document.addEventListener("click", (ev) => {
+        if (ev.target.closest(".historico-paginacao a")) guardar();
+    }, true);
+
+    let pendente = null;
+    try {
+        pendente = JSON.parse(sessionStorage.getItem(CHAVE) || "null");
+        sessionStorage.removeItem(CHAVE);
+    } catch (_e) { pendente = null; }
+    if (pendente && pendente.caminho === location.pathname) {
+        if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+        const repor = () => window.scrollTo(0, pendente.y);
+        document.addEventListener("DOMContentLoaded", repor);
+        window.addEventListener("load", repor);
+    }
+})();
