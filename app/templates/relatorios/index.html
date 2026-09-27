@@ -51,25 +51,28 @@
 </div>
 
 <div class="row g-3 stat-grid mb-3">
-    <div class="col-6 col-xl-3"><div class="stat-card">
+    <div class="col-12 col-md-4"><div class="stat-card">
         <span class="stat-icon navy"><i class="bi bi-laptop"></i></span>
         <div><small>Equipamentos entregues</small><strong>{{ rel.total_equipamentos }}</strong></div>
     </div></div>
-    <div class="col-6 col-xl-3"><div class="stat-card">
+    <div class="col-12 col-md-4"><div class="stat-card">
         <span class="stat-icon"><i class="bi bi-journal-check"></i></span>
         <div><small>Notas concluídas</small><strong>{{ rel.total_notas }}</strong></div>
     </div></div>
-    <div class="col-6 col-xl-3"><div class="stat-card">
+    <div class="col-12 col-md-4"><div class="stat-card">
         <span class="stat-icon"><i class="bi bi-people"></i></span>
         <div><small>Colaboradores</small><strong>{{ rel.total_colaboradores }}</strong></div>
     </div></div>
-    <div class="col-6 col-xl-3"><div class="stat-card">
-        <span class="stat-icon"><i class="bi bi-trophy"></i></span>
-        {% set mais = rel.tipo_mais_entregue %}
-        <div><small>Tipo mais entregue</small><strong class="rel-kpi-texto">{{ mais.nome ~ ' (' ~ mais.quantidade ~ ')' if mais else '—' }}</strong></div>
-    </div></div>
 </div>
 
+<div class="rel-navegacao" aria-label="Navegação">
+    <button type="button" class="sig-icon-btn" onclick="history.back()" title="Voltar" aria-label="Voltar">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+    </button>
+    <button type="button" class="sig-icon-btn" onclick="history.forward()" title="Avançar" aria-label="Avançar">
+        <i class="bi bi-arrow-right" aria-hidden="true"></i>
+    </button>
+</div>
 <div class="row g-3 mb-3">
     {% for titulo, grupos, chave in [('Por tipo de equipamento', rel.por_tipo, 'tipo'), ('Por departamento', rel.por_departamento, 'departamento')] %}
     <div class="col-lg-6">

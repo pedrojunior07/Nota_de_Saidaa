@@ -142,11 +142,6 @@ class Relatorio:
         return self._agrupar("departamento")
 
     @property
-    def tipo_mais_entregue(self) -> dict | None:
-        grupos = self.por_tipo
-        return grupos[0] if grupos else None
-
-    @property
     def filtros_ativos(self) -> list[tuple[str, str]]:
         rotulos = {"tipo": "Tipo", "departamento": "Departamento", "local": "Local",
                    "motivo": "Motivo", "tecnico": "Técnico"}
