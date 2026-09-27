@@ -15,7 +15,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import date, datetime
 
-from app.utils.constants import EstadoNota
+from app.utils.constants import TIPOS_ITEM, EstadoNota
 
 MODULOS = {
     "saida": {
@@ -201,6 +201,11 @@ def gerar(tipo: str, inicio: date, fim: date, filtros: dict | None = None) -> Re
     # Opções dos filtros: valores existentes no período (antes de filtrar),
     # para nunca oferecer uma escolha que dá zero resultados.
     opcoes = {k: sorted({l[k] for l in no_periodo if l[k]}, key=str.lower) for k in FILTROS_TEXTO}
+    # Tipo: a mesma lista (e ordem) do dropdown «Material a entregar» dos
+    # formulários; tipos antigos que já não estão na lista mas existem nas
+    # notas do período vão no fim, para continuarem filtráveis.
+    antigos = [t for t in opcoes["tipo"] if t not in TIPOS_ITEM]
+    opcoes["tipo"] = list(TIPOS_ITEM) + antigos
 
     def _passa(linha, ignorar=None):
         return all(not v or linha[k] == v for k, v in filtros.items() if k != ignorar)
