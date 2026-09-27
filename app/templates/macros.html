@@ -6,7 +6,7 @@
 <div class="tabela-linhas">
     <label for="seletorLinhas_{{ endpoint | replace('.', '_') }}">Linhas</label>
     <select class="form-select form-select-sm" id="seletorLinhas_{{ endpoint | replace('.', '_') }}"
-            onchange="window.location.href = this.value" aria-label="Linhas por página">
+            aria-label="Linhas por página">
         {% for valor, rotulo in [('5', '5'), ('10', '10'), ('15', '15'), ('todas', 'Todas')] %}
         {% set qs = request.args.to_dict() %}
         {% set _ = qs.pop('pagina', none) %}

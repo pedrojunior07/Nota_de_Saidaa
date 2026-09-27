@@ -1977,3 +1977,6 @@ table tbody tr.linha-clicavel:focus-visible { outline: none; }
 
 .historico-paginacao { align-items: center; gap: 12px; }
 .paginacao-info { font-size: 13px; color: var(--muted, #6c757d); }
+
+/* Paginação parcial: painel da tabela durante a troca */
+.panel.a-carregar { opacity: .6; transition: opacity .12s ease; pointer-events: none; }

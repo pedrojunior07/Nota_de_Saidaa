@@ -129,18 +129,18 @@ document.addEventListener("DOMContentLoaded", () => {
     profileToggle?.addEventListener("click", alternarPerfil);
 
     // Linhas de tabela clicáveis (data-href) — abrem o registo ao clicar ou Enter.
-    document.querySelectorAll("[data-href]").forEach((linha) => {
-        const irPara = () => { window.location = linha.dataset.href; };
-        linha.addEventListener("click", (ev) => {
-            if (ev.target.closest("a, button")) return;
-            irPara();
-        });
-        linha.addEventListener("keydown", (ev) => {
-            if (ev.key === "Enter" || ev.key === " ") {
-                ev.preventDefault();
-                irPara();
-            }
-        });
+    // Delegação no documento: também funciona nas linhas que a paginação
+    // parcial (mais abaixo) troca sem recarregar a página.
+    document.addEventListener("click", (ev) => {
+        const linha = ev.target.closest("[data-href]");
+        if (!linha || ev.target.closest("a, button, input, select, label")) return;
+        window.location = linha.dataset.href;
+    });
+    document.addEventListener("keydown", (ev) => {
+        const linha = ev.target.closest?.("[data-href]");
+        if (!linha || (ev.key !== "Enter" && ev.key !== " ")) return;
+        ev.preventDefault();
+        window.location = linha.dataset.href;
     });
 
     document.querySelectorAll(".folha-sig[data-left]").forEach((signature) => {
@@ -179,32 +179,62 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-/* Tabelas: ao mudar o nº de linhas ou de página a página recarrega; guardamos
- * a posição do scroll e repomo-la, para o utilizador ficar na mesma secção em
- * vez de saltar para o topo. */
+/* Paginação parcial: ao mudar de página ou o nº de linhas, só o painel da
+ * tabela é trocado — a página não recarrega nem se mexe. O endereço é
+ * atualizado (pushState), por isso voltar/avançar e recarregar continuam a
+ * funcionar. Se algo falhar, cai na navegação normal.
+ */
 (() => {
-    const CHAVE = "posicaoScrollTabela";
-    const guardar = () => {
+    const PAINEL = ".panel";
+    const painelDe = (el) => el?.closest(PAINEL);
+
+    const trocar = async (url, painel, { novoTamanho = false, historico = true } = {}) => {
+        if (!painel) { window.location.href = url; return; }
+        // Índice do painel entre os que têm tabela paginada (para o encontrar
+        // na resposta, que tem a mesma estrutura).
+        const paineis = [...document.querySelectorAll(PAINEL)].filter((p) => p.querySelector(".tabela-linhas, .historico-paginacao"));
+        const indice = paineis.indexOf(painel);
+        // Mantém a altura enquanto carrega e ao folhear (a última página pode ter
+        // menos linhas) para nada abaixo "saltar"; ao mudar o nº de linhas, liberta.
+        const altura = painel.getBoundingClientRect().height;
+        painel.style.minHeight = novoTamanho ? "" : `${Math.max(altura, parseFloat(painel.style.minHeight) || 0)}px`;
+        painel.classList.add("a-carregar");
         try {
-            sessionStorage.setItem(CHAVE, JSON.stringify({ caminho: location.pathname, y: window.scrollY }));
-        } catch (_e) { /* storage indisponível: ignora */ }
+            const resposta = await fetch(url, { headers: { "X-Requested-With": "fetch" }, credentials: "same-origin" });
+            if (!resposta.ok || resposta.redirected) throw new Error(String(resposta.status));
+            const doc = new DOMParser().parseFromString(await resposta.text(), "text/html");
+            const novos = [...doc.querySelectorAll(PAINEL)].filter((p) => p.querySelector(".tabela-linhas, .historico-paginacao"));
+            const novo = novos[indice];
+            if (!novo) throw new Error("painel não encontrado");
+            painel.innerHTML = novo.innerHTML;
+            if (novoTamanho) painel.style.minHeight = "";
+            if (historico) history.pushState({ paginacaoParcial: true }, "", url);
+        } catch (_e) {
+            window.location.href = url;
+        } finally {
+            painel.classList.remove("a-carregar");
+        }
     };
-    document.addEventListener("change", (ev) => {
-        if (ev.target.closest(".tabela-linhas select")) guardar();
-    }, true);
+
     document.addEventListener("click", (ev) => {
-        if (ev.target.closest(".historico-paginacao a")) guardar();
+        const link = ev.target.closest(".historico-paginacao a");
+        if (!link || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.button !== 0) return;
+        ev.preventDefault();
+        trocar(link.href, painelDe(link));
+    });
+
+    document.addEventListener("change", (ev) => {
+        const select = ev.target.closest(".tabela-linhas select");
+        if (!select) return;
+        ev.stopImmediatePropagation();
+        trocar(new URL(select.value, location.href).href, painelDe(select), { novoTamanho: true });
     }, true);
 
-    let pendente = null;
-    try {
-        pendente = JSON.parse(sessionStorage.getItem(CHAVE) || "null");
-        sessionStorage.removeItem(CHAVE);
-    } catch (_e) { pendente = null; }
-    if (pendente && pendente.caminho === location.pathname) {
-        if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-        const repor = () => window.scrollTo(0, pendente.y);
-        document.addEventListener("DOMContentLoaded", repor);
-        window.addEventListener("load", repor);
-    }
+    // Voltar/avançar do browser (e as setas do relatório) entre páginas da tabela.
+    window.addEventListener("popstate", () => {
+        const painel = document.querySelector(".tabela-linhas")?.closest(PAINEL)
+            || document.querySelector(".historico-paginacao")?.closest(PAINEL);
+        if (painel) trocar(location.href, painel, { historico: false });
+        else window.location.reload();
+    });
 })();
