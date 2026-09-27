@@ -1,6 +1,7 @@
 """Relatório de equipamentos entregues — um por módulo (Saída / Entrega).
 
-Todos os perfis podem ver (só leitura). O módulo vem da sessão, tal como o
+Técnicos, Técnicos Admin e Aprovadores podem ver (só leitura); o
+Administrador puro não. O módulo vem da sessão, tal como o
 resto da plataforma; o PDF usa exatamente os mesmos filtros do ecrã.
 """
 
@@ -14,6 +15,15 @@ from app.utils.pagination import SimplePagination
 from app.utils.tempo import agora
 
 bp = Blueprint("relatorios", __name__, url_prefix="/relatorios")
+
+
+@bp.before_request
+def _bloquear_admin():
+    """O Administrador puro não tem o relatório (o Técnico Admin tem)."""
+    if current_user.is_authenticated and current_user.is_admin():
+        from flask import redirect, url_for
+
+        return redirect(url_for("admin.utilizadores"))
 
 
 def _data(nome):

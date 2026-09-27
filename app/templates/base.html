@@ -40,9 +40,11 @@
                 </a>
                 {% endif %}
 
+                {% if not current_user.is_admin() %}
                 <a href="{{ url_for('relatorios.index') }}" class="nav-link {% if request.blueprint == 'relatorios' %}active{% endif %}">
                     <i class="bi bi-clipboard-data"></i> Relatórios
                 </a>
+                {% endif %}
 
                 {% if current_user.pode_gerir_plataforma() %}
                 <div class="nav-section">Administração</div>
@@ -70,9 +72,11 @@
                 </a>
                 {% endif %}
 
+                {% if not current_user.is_admin() %}
                 <a href="{{ url_for('relatorios.index') }}" class="nav-link {% if request.blueprint == 'relatorios' %}active{% endif %}">
                     <i class="bi bi-clipboard-data"></i> Relatórios
                 </a>
+                {% endif %}
 
                 {% if current_user.pode_gerir_plataforma() %}
                 <div class="nav-section">Administração</div>
