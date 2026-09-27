@@ -83,6 +83,12 @@ def _obter_ou_404(nota_id):
 
 
 def _pode_ver(nota):
+    # Notas concluídas são só de consulta e os seus dados já aparecem no
+    # relatório de equipamentos (visível a todos): qualquer utilizador pode
+    # abri-las a partir do relatório. As ações continuam protegidas pelas
+    # regras do modelo (pode_editar / pode_aprovar / pode_gerir_assinaturas).
+    if nota.estado == EstadoNota.CONCLUIDA.value:
+        return True
     if current_user.is_aprovador():
         return nota.estado != EstadoNota.RASCUNHO.value
     if current_user.is_tecnico() and (

@@ -106,8 +106,13 @@
             </tr></thead>
             <tbody>
             {% for l in paginacao.items %}
+            {# O Administrador não acede às notas (regra da plataforma): para ele as linhas são só informativas. #}
+            {% if current_user.is_admin() %}
+            <tr>
+            {% else %}
             <tr class="linha-clicavel" data-href="{{ url_for(modulo.detalhe, nota_id=l.nota_id) }}"
                 tabindex="0" role="link" aria-label="Abrir nota {{ l.numero_nota }}" title="Abrir nota {{ l.numero_nota }}">
+            {% endif %}
                 <td class="text-nowrap">{{ l.data.strftime('%d/%m/%Y') }}</td>
                 <td class="text-nowrap fw-semibold">{{ l.numero_nota }}</td>
                 <td class="text-nowrap">{{ l.referencia }}</td>
