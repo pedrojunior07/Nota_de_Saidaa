@@ -1944,3 +1944,18 @@ body.sig-capture-open { overflow: hidden; }
 .rel-datas[hidden] { display: none !important; }
 .rel-detalhe td { font-size: 13px; }
 .rel-navegacao { display: flex; gap: 8px; margin-bottom: 10px; }
+
+/* Linhas de tabela clicáveis (listagens de notas e relatório): cursor de mão
+   e destaque azul ao passar o rato / focar com o teclado, para que se perceba
+   que abrem a nota. Especificidade acima de .table-hover do Bootstrap 5.3. */
+table tbody tr.linha-clicavel { cursor: pointer; }
+table tbody tr.linha-clicavel:hover > td,
+table tbody tr.linha-clicavel:focus-visible > td {
+    --bs-table-bg-state: var(--secondary-bg);
+    color: var(--navy);
+}
+table tbody tr.linha-clicavel:hover > td:first-child,
+table tbody tr.linha-clicavel:focus-visible > td:first-child {
+    box-shadow: inset 3px 0 0 var(--secondary), inset 0 0 0 9999px var(--secondary-bg);
+}
+table tbody tr.linha-clicavel:focus-visible { outline: none; }
