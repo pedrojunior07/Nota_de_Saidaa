@@ -44,12 +44,20 @@ def _voltar_a_listar():
     return redirect(destino)
 
 
+_CONSULTA_ADMIN = {"entrega.detalhe", "entrega.pdf", "entrega.servir_assinatura"}
+
+
 @bp.before_request
 def _bloquear_admin():
     """O Administrador gere a plataforma (utilizadores, permissões, campos) e
     não cria nem vê notas — isso é exclusivo do Técnico (e do Aprovador, só
     para decidir)."""
     if current_user.is_authenticated and current_user.is_admin():
+        # Exceção: consultar notas CONCLUÍDAS a partir do relatório de
+        # equipamentos (só leitura — detalhe, PDF e imagens das assinaturas).
+        # O detalhe/PDF só deixam passar notas concluídas (ver _pode_ver).
+        if request.endpoint in _CONSULTA_ADMIN:
+            return None
         flash("Administradores gerem a plataforma e não têm acesso às notas.", "info")
         return redirect(url_for("admin.utilizadores"))
 
