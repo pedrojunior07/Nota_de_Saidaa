@@ -5,6 +5,13 @@ services:
       - "5005:5000"
     env_file:
       - .env
+    # Valores fixos para todos os ambientes: têm prioridade sobre o .env do
+    # servidor (que não está no repositório). O login usa a password do AD
+    # através do endpoint interno do banco.
+    environment:
+      - AUTH_MODE=api
+      - AUTH_API_URL=http://10.245.207.70:99/authenticator/login
+      - AUTH_API_CHANNEL=RAO
     logging:
       driver: loki
       options:
