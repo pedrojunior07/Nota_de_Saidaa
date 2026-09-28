@@ -13,6 +13,8 @@ activo; a validação externa (AD ou API) apenas confirma a identidade/palavra-
 passe, não cria contas nem atribui perfis.
 """
 
+from __future__ import annotations
+
 import os
 import uuid
 
