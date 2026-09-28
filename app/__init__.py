@@ -87,6 +87,7 @@ def _registar_blueprints(app):
     from app.routes.aprovacoes import bp as aprovacoes_bp
     from app.routes.auth import bp as auth_bp
     from app.routes.entrega import bp as entrega_bp
+    from app.routes.health import bp as health_bp
     from app.routes.relatorios import bp as relatorios_bp
     from app.routes.modulos import bp as modulos_bp
     from app.routes.notas import bp as notas_bp
@@ -98,6 +99,7 @@ def _registar_blueprints(app):
     app.register_blueprint(admin_bp)
     app.register_blueprint(entrega_bp)
     app.register_blueprint(relatorios_bp)
+    app.register_blueprint(health_bp)
 
     _registar_guarda_modulo(app)
 

@@ -4,6 +4,12 @@ FROM  nexus.standardbank.co.mz:7777/python:3.9
 # Diretório de trabalho dentro do container
 WORKDIR /app
 
+# Versão da imagem (enviada pela pipeline em --build-arg); mostrada em /api/health
+ARG VERSION=dev
+ARG GIT_COMMIT=desconhecido
+ARG BUILD_DATE=desconhecida
+ENV APP_VERSION=$VERSION APP_GIT_COMMIT=$GIT_COMMIT APP_BUILD_DATE=$BUILD_DATE
+
 # Copiar ficheiro de dependências primeiro (otimiza cache)
 COPY requirements.txt .
 
