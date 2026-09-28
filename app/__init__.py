@@ -29,6 +29,11 @@ def create_app(config_name="development"):
     _garantir_colunas_assinatura_sqlite(app)
     _garantir_tabelas_novas(app)
     _registar_blueprints(app)
+    app.logger.warning(
+        "Arranque: AUTH_MODE=%s | USE_MONGO_USERS=%s | FLASK_ENV=%s",
+        app.config.get("AUTH_MODE"), os.environ.get("USE_MONGO_USERS", "0"),
+        os.environ.get("FLASK_ENV", "development"),
+    )
     _registar_contexto(app)
     _registar_erros(app)
     _registar_comandos(app)

@@ -85,10 +85,17 @@ def autenticar(username, password):
         utilizador = UserRepository().get_by_username(username)
     else:
         utilizador = User.query.filter_by(username=username).first()
-    if utilizador is None or not utilizador.ativo:
-        return None
-
     modo = (current_app.config.get("AUTH_MODE") or "local").lower()
+    # Motivos de recusa registados (warning, visíveis nos logs de produção):
+    # sem isto, um login falhado não deixa rasto e é impossível diagnosticar.
+    if utilizador is None:
+        current_app.logger.warning(
+            "Login recusado [%s]: o utilizador %s não existe na base de dados (%s) — "
+            "tem de ser criado em Admin > Utilizadores.", modo, username, "Mongo" if mongo else "SQLite")
+        return None
+    if not utilizador.ativo:
+        current_app.logger.warning("Login recusado [%s]: o utilizador %s está inativo.", modo, username)
+        return None
     if modo == "api":
         ok, conta = _validar_via_api(username, password)
         if not ok:
@@ -97,7 +104,13 @@ def autenticar(username, password):
         return utilizador
     if modo == "ldap":
         return utilizador if _validar_ldap(username, password) else None
-    return utilizador if utilizador.verificar_password(password) else None
+    if not utilizador.verificar_password(password):
+        current_app.logger.warning(
+            "Login recusado [local]: palavra-passe local errada para %s. "
+            "(AUTH_MODE=local só aceita as palavras-passe guardadas na BD; "
+            "para a password do AD use AUTH_MODE=api.)", username)
+        return None
+    return utilizador
 
 
 def _validar_via_api(username, password):
@@ -146,8 +159,8 @@ def _validar_via_api(username, password):
         detalhe = resposta.json().get("detail")
     except ValueError:
         pass
-    current_app.logger.info(
-        "Autenticação via API falhou para %s (status %s): %s",
+    current_app.logger.warning(
+        "Login recusado [api]: o endpoint rejeitou %s (status %s): %s",
         username,
         resposta.status_code,
         detalhe or resposta.text[:200],
