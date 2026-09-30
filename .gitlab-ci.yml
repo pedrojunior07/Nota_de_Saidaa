@@ -197,6 +197,27 @@ deploy-dev:
   rules:
     - if: '$CI_COMMIT_BRANCH == "sbmz-dev"'
 
+# Botão manual (DEV): repõe o perfil de um utilizador — ex.: quando a
+# plataforma fica sem administrador. Corre dentro do container da app, com a
+# mesma ligação à base de dados. Para outro utilizador/perfil, preencher as
+# variáveis ao clicar em "Run job" (PERFIL_USERNAME / PERFIL_NOVO).
+repor-perfil-dev:
+  stage: deploy
+  when: manual
+  allow_failure: true
+  needs: []
+  variables:
+    PERFIL_USERNAME: "A272754"
+    PERFIL_NOVO: "administrador"
+  script:
+    - ssh-keyscan $REMOTE_DEV >> ~/.ssh/known_hosts
+    - echo "A definir o perfil de $PERFIL_USERNAME para $PERFIL_NOVO..."
+    - ssh $USER@$REMOTE_DEV "cd /application/$CI_PROJECT_NAME/ && docker compose exec -T automacao_nota_de_saida python -m flask --app run definir-perfil $PERFIL_USERNAME $PERFIL_NOVO"
+  tags:
+    - sbmz-docker-base-test
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "sbmz-dev"'
+
 deploy-uat:
   stage: deploy
   needs:
