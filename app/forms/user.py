@@ -23,7 +23,7 @@ class UserForm(FlaskForm):
             DataRequired(message="Indique o nome de utilizador."),
             Regexp(
                 r"^[A-Za-z]{1,2}\d{4,8}$",
-                message="Formato inválido (ex.: A272754).",
+                message="Formato inválido. Use o nº de colaborador (letra seguida de algarismos).",
             ),
             Length(max=20),
         ],

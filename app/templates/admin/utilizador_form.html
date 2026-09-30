@@ -13,7 +13,7 @@
         <div class="row g-3">
             <div class="col-md-6">
                 {{ form.username.label(class="form-label") }}
-                {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else ""), placeholder="A272754") }}
+                {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else "")) }}
                 {% for erro in form.username.errors %}<div class="invalid-feedback">{{ erro }}</div>{% endfor %}
             </div>
             {% if utilizador %}

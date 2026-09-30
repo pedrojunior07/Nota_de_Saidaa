@@ -17,11 +17,10 @@ class LoginForm(FlaskForm):
             DataRequired(message="Indique o nome de utilizador."),
             Regexp(
                 r"^[A-Za-z]{1,2}\d{4,8}$",
-                message="Formato inválido. Use o seu nº de colaborador (ex.: A272754).",
+                message="Formato inválido. Use o seu nº de colaborador (letra seguida de algarismos).",
             ),
         ],
         render_kw={
-            "placeholder": "A272754",
             "autocomplete": "username",
             "autocapitalize": "characters",
             "spellcheck": "false",
