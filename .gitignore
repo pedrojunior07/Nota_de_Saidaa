@@ -32,3 +32,9 @@ Thumbs.db
 .coverage
 htmlcov/
 .pytest_cache/
+
+# Código/segredos de outros sistemas do banco — nunca no repositório
+automation-auth-module*/
+*.pem
+*.p12
+*.jks
