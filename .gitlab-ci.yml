@@ -218,13 +218,14 @@ repor-perfil-dev:
   rules:
     - if: '$CI_COMMIT_BRANCH == "sbmz-dev"'
 
-# Botão manual (DEV): limpa os dados de teste (notas de saída e entrega, histórico,
-# numeração, PDFs, assinaturas das notas e utilizadores de teste). Mantém as
-# configurações, os módulos e os utilizadores de RESET_MANTER; RESET_ADMIN fica
-# Administrador. Por omissão é SIMULAÇÃO: só mostra o que apagaria. Para apagar
-# a sério, ao clicar em "Run job" definir RESET_CONFIRMAR = sim. Antes de apagar
-# guarda uma cópia em instance/backups/reset-<data>/ (volume app_instance).
-reset-dados-dev:
+# Botões manuais (DEV) para limpar os dados de teste (notas de saída e entrega,
+# histórico, numeração, PDFs, assinaturas das notas e utilizadores de teste).
+# Mantêm configurações, módulos e os utilizadores de RESET_MANTER; RESET_ADMIN
+# fica Administrador. Antes de apagar é guardada uma cópia em
+# instance/backups/reset-<data>/ (volume app_instance).
+#   1) reset-dados-dev-simular -> só mostra o que seria apagado
+#   2) reset-dados-dev-APAGAR  -> apaga a sério
+.reset-dados-base:
   stage: deploy
   when: manual
   allow_failure: true
@@ -232,15 +233,25 @@ reset-dados-dev:
   variables:
     RESET_MANTER: "A272754,C974468"
     RESET_ADMIN: "A272754"
-    RESET_CONFIRMAR: "nao"
-  script:
-    - ssh-keyscan $REMOTE_DEV >> ~/.ssh/known_hosts
-    - if [ "$RESET_CONFIRMAR" = "sim" ]; then FLAG="--confirmar"; echo "ATENÇÃO - vai APAGAR os dados de teste"; else FLAG=""; echo "SIMULAÇÃO - nada será apagado"; fi
-    - ssh $USER@$REMOTE_DEV "cd /application/$CI_PROJECT_NAME/ && docker compose exec -T automacao_nota_de_saida python -m flask --app run reset-dados --manter $RESET_MANTER --admin $RESET_ADMIN $FLAG"
   tags:
     - sbmz-docker-base-test
   rules:
     - if: '$CI_COMMIT_BRANCH == "sbmz-dev"'
+
+reset-dados-dev-simular:
+  extends: .reset-dados-base
+  script:
+    - ssh-keyscan $REMOTE_DEV >> ~/.ssh/known_hosts
+    - echo "SIMULAÇÃO - nada será apagado"
+    - ssh $USER@$REMOTE_DEV "cd /application/$CI_PROJECT_NAME/ && docker compose exec -T automacao_nota_de_saida python -m flask --app run reset-dados --manter $RESET_MANTER --admin $RESET_ADMIN"
+
+reset-dados-dev-APAGAR:
+  extends: .reset-dados-base
+  script:
+    - ssh-keyscan $REMOTE_DEV >> ~/.ssh/known_hosts
+    - echo "ATENÇÃO - vai APAGAR os dados de teste (com cópia de segurança)"
+    - ssh $USER@$REMOTE_DEV "cd /application/$CI_PROJECT_NAME/ && docker compose exec -T automacao_nota_de_saida python -m flask --app run reset-dados --manter $RESET_MANTER --admin $RESET_ADMIN --confirmar"
+
 
 # Botão manual (DEV): envia para o OneDrive/SharePoint as notas concluídas
 # (carga inicial ou repetir envios falhados). Ver docs/backup_onedrive.md.
