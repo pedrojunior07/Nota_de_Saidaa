@@ -218,40 +218,6 @@ repor-perfil-dev:
   rules:
     - if: '$CI_COMMIT_BRANCH == "sbmz-dev"'
 
-# Botões manuais (DEV) para limpar os dados de teste (notas de saída e entrega,
-# histórico, numeração, PDFs, assinaturas das notas e utilizadores de teste).
-# Mantêm configurações, módulos e os utilizadores de RESET_MANTER; RESET_ADMIN
-# fica Administrador. Antes de apagar é guardada uma cópia em
-# instance/backups/reset-<data>/ (volume app_instance).
-#   1) reset-dados-dev-simular -> só mostra o que seria apagado
-#   2) reset-dados-dev-APAGAR  -> apaga a sério
-.reset-dados-base:
-  stage: deploy
-  when: manual
-  allow_failure: true
-  needs: []
-  variables:
-    RESET_MANTER: "A272754,C974468"
-    RESET_ADMIN: "A272754"
-  tags:
-    - sbmz-docker-base-test
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "sbmz-dev"'
-
-reset-dados-dev-simular:
-  extends: .reset-dados-base
-  script:
-    - ssh-keyscan $REMOTE_DEV >> ~/.ssh/known_hosts
-    - echo "SIMULAÇÃO - nada será apagado"
-    - ssh $USER@$REMOTE_DEV "cd /application/$CI_PROJECT_NAME/ && docker compose exec -T automacao_nota_de_saida python -m flask --app run reset-dados --manter $RESET_MANTER --admin $RESET_ADMIN"
-
-reset-dados-dev-APAGAR:
-  extends: .reset-dados-base
-  script:
-    - ssh-keyscan $REMOTE_DEV >> ~/.ssh/known_hosts
-    - echo "ATENÇÃO - vai APAGAR os dados de teste (com cópia de segurança)"
-    - ssh $USER@$REMOTE_DEV "cd /application/$CI_PROJECT_NAME/ && docker compose exec -T automacao_nota_de_saida python -m flask --app run reset-dados --manter $RESET_MANTER --admin $RESET_ADMIN --confirmar"
-
 
 # Botão manual (DEV): envia para o OneDrive/SharePoint as notas concluídas
 # (carga inicial ou repetir envios falhados). Ver docs/backup_onedrive.md.
