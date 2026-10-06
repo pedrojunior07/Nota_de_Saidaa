@@ -190,7 +190,7 @@ deploy-dev:
         docker rmi -f $DOCKER_NAME &&
         docker compose pull &&
         docker compose down || true &&
-        BACKUP_MODE='$BACKUP_MODE' BACKUP_WEBHOOK_URL='$BACKUP_WEBHOOK_URL' BACKUP_PASTA='$BACKUP_PASTA' docker compose up -d"
+        BACKUP_MODE='${BACKUP_MODE:-}' BACKUP_WEBHOOK_URL='${BACKUP_WEBHOOK_URL:-}' BACKUP_PASTA='${BACKUP_PASTA:-}' docker compose up -d"
     - echo "Deployment completed successfully"
   tags:
     - sbmz-docker-base-test
