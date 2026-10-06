@@ -12,6 +12,11 @@ services:
       - AUTH_MODE=api
       - AUTH_API_URL=http://10.245.207.70:99/authenticator/login
       - AUTH_API_CHANNEL=RAO
+      # Backup das notas concluídas: valores vêm das variáveis CI/CD do GitLab
+      # (o deploy passa-os ao docker compose). Vazio = desligado.
+      - BACKUP_MODE=${BACKUP_MODE:-desligado}
+      - BACKUP_WEBHOOK_URL=${BACKUP_WEBHOOK_URL:-}
+      - BACKUP_PASTA=${BACKUP_PASTA:-}
     logging:
       driver: loki
       options:

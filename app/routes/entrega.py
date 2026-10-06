@@ -503,6 +503,10 @@ def guardar_assinatura(nota_id, papel):
     if papel == "recebido" and estava_aprovada and nota.estado == EstadoNota.CONCLUIDA.value:
         # Última assinatura: nota concluída -> PDF ao recetor, em nome do técnico.
         notificacoes.nota_concluida("entrega", nota, current_user)
+        # Cópia automática do PDF final para o OneDrive/SharePoint (se configurado).
+        from app.services import backup_nuvem
+
+        backup_nuvem.guardar_nota_concluida("entrega", nota)
     return jsonify({"ok": True, "url": url_assinatura(fname), "estado": nota.estado})
 
 

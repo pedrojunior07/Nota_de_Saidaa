@@ -106,6 +106,18 @@ class Config:
     MAIL_TIMEOUT = float(os.environ.get("MAIL_TIMEOUT", "15"))
     APP_BASE_URL = os.environ.get("APP_BASE_URL", "")
 
+    # ------------------------------------------------------------------
+    # Cópia automática das notas concluídas (OneDrive/SharePoint/pasta)
+    #   BACKUP_MODE = "desligado" (omissão) | "webhook" | "pasta"
+    #   webhook: BACKUP_WEBHOOK_URL = URL do flow do Power Automate
+    #   pasta:   BACKUP_PASTA = caminho montado no container
+    # Ver docs/backup_onedrive.md
+    # ------------------------------------------------------------------
+    BACKUP_MODE = os.environ.get("BACKUP_MODE", "desligado").lower()
+    BACKUP_WEBHOOK_URL = os.environ.get("BACKUP_WEBHOOK_URL", "")
+    BACKUP_PASTA = os.environ.get("BACKUP_PASTA", "")
+    BACKUP_TIMEOUT = float(os.environ.get("BACKUP_TIMEOUT", "60"))
+
     # Formato aceite para o nome de utilizador (nº de colaborador), ex.: A272754
     USERNAME_REGEX = os.environ.get("USERNAME_REGEX", r"^[A-Za-z]{1,2}\d{4,8}$")
 

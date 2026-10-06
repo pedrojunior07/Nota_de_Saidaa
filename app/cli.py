@@ -17,6 +17,7 @@ from app.utils.constants import PERFIS_LABEL
 
 def registar_comandos(app: Flask) -> None:
     _registar_reset(app)
+    _registar_backup(app)
 
     @app.cli.command("definir-perfil")
     @click.argument("username")
@@ -197,3 +198,35 @@ def _registar_reset(app: Flask) -> None:
             click.echo(f"OK: dados limpos. {admin} é Administrador ativo.")
         else:
             click.echo("Simulação concluída. Para apagar a sério, repetir com --confirmar.")
+
+
+# ---------------------------------------------------------------------------
+# backup-notas: (re)envia as notas concluídas para o destino de backup
+# ---------------------------------------------------------------------------
+def _registar_backup(app: Flask) -> None:
+    @app.cli.command("backup-notas")
+    @click.option("--tipo", type=click.Choice(["todas", "saida", "entrega"]), default="todas", show_default=True)
+    @click.option("--desde", default=None, help="Só notas concluídas a partir desta data (AAAA-MM-DD).")
+    def backup_notas(tipo: str, desde: str | None) -> None:
+        """Envia para o OneDrive/SharePoint/pasta as notas concluídas (carga
+        inicial, ou para repetir envios que falharam). Usa BACKUP_MODE."""
+        from datetime import date, datetime
+
+        from app.services import backup_nuvem
+        from app.services.relatorio_service import _notas_concluidas
+
+        if backup_nuvem.modo() == "desligado":
+            raise click.ClickException("BACKUP_MODE=desligado — configure o backup primeiro (docs/backup_onedrive.md).")
+        limite = date.fromisoformat(desde) if desde else None
+        ok = falhas = 0
+        for t in (["saida", "entrega"] if tipo == "todas" else [tipo]):
+            for nota in _notas_concluidas(t):
+                dc = getattr(nota, "data_conclusao", None)
+                dc = dc.date() if isinstance(dc, datetime) else dc
+                if limite and (not dc or dc < limite):
+                    continue
+                sucesso, detalhe = backup_nuvem.enviar_agora(t, nota)
+                ok += sucesso
+                falhas += not sucesso
+                click.echo(f"  {'OK   ' if sucesso else 'FALHA'} {t} {getattr(nota, 'numero_documento', nota.id)}: {detalhe}")
+        click.echo(f"Concluído: {ok} enviadas, {falhas} falhas.")
