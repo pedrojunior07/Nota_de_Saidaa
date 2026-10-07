@@ -38,13 +38,13 @@ TERMO_MINIMO = 2
 # Substituída pela pesquisa LDAP quando DIRECTORY_MODE=ldap.
 # ---------------------------------------------------------------------------
 _PESSOAS_SIMULADAS: list[dict] = [
-    {"email": "clementina.elihud@standardbank.co.mz", "nome": "Clementina Elihud", "departamento": "Informática", "cargo": "Programadora", "username": "A310457"},
+    {"email": "Clementina.Elihud@standardbank.co.mz", "nome": "Clementina Elihud", "departamento": "Informática", "cargo": "Estagiária", "username": "A272754"},
     {"email": "maria.silva@standardbank.co.mz", "nome": "Maria Silva", "departamento": "Recursos Humanos", "cargo": "Técnica de Recrutamento", "username": "A301145"},
     {"email": "joao.cossa@standardbank.co.mz", "nome": "João Cossa", "departamento": "Operações", "cargo": "Analista de Operações", "username": "A288390"},
     {"email": "paula.nhantumbo@standardbank.co.mz", "nome": "Paula Nhantumbo", "departamento": "Crédito", "cargo": "Gestora de Crédito", "username": "A275501"},
     {"email": "sergio.langa@standardbank.co.mz", "nome": "Sérgio Langa", "departamento": "Tesouraria", "cargo": "Dealer", "username": "A266740"},
     {"email": "ana.macamo@standardbank.co.mz", "nome": "Ana Macamo", "departamento": "Auditoria Interna", "cargo": "Auditora Sénior", "username": "A200550"},
-    {"email": "carlos.mendes@standardbank.co.mz", "nome": "Carlos Mendes", "departamento": "Informática", "cargo": "Técnico de Informática", "username": "A272754"},
+    {"email": "carlos.mendes@standardbank.co.mz", "nome": "Carlos Mendes", "departamento": "Informática", "cargo": "Técnico de Informática", "username": "A272799"},
     {"email": "beatriz.chissano@standardbank.co.mz", "nome": "Beatriz Chissano", "departamento": "Compliance", "cargo": "Oficial de Compliance", "username": "A311902"},
     {"email": "nelson.come@standardbank.co.mz", "nome": "Nelson Come", "departamento": "Banca de Empresas", "cargo": "Gestor de Relação", "username": "A249317"},
     {"email": "sandra.machava@standardbank.co.mz", "nome": "Sandra Machava", "departamento": "Marketing", "cargo": "Coordenadora de Marca", "username": "A293648"},
@@ -78,9 +78,53 @@ def procurar_pessoas(termo: str, limite: int = 10) -> list[dict]:
         return []
 
     modo = (current_app.config.get("DIRECTORY_MODE") or "simulacao").lower()
-    if modo == "ldap":
-        return _procurar_ldap(termo, limite)
-    return _procurar_simulacao(termo, limite)
+    # 1) Utilizadores reais da plataforma (nome e e-mail gravados no login):
+    #    aparecem sempre, mesmo sem acesso ao AD ou se o LDAP falhar.
+    resultados = _procurar_utilizadores(termo, limite)
+    # 2) Diretório (LDAP ou lista de simulação).
+    try:
+        externos = _procurar_ldap(termo, limite) if modo == "ldap" else _procurar_simulacao(termo, limite)
+    except Exception:  # noqa: BLE001 — o diretório nunca deve partir a pesquisa
+        current_app.logger.exception("Pesquisa no diretório falhou.")
+        externos = []
+    vistos = {(p.get("email") or "").lower() for p in resultados}
+    for pessoa in externos:
+        chave = (pessoa.get("email") or "").lower()
+        if chave and chave not in vistos:
+            vistos.add(chave)
+            resultados.append(pessoa)
+    return resultados[:limite]
+
+
+def _procurar_utilizadores(termo: str, limite: int) -> list[dict]:
+    """Utilizadores da plataforma com e-mail conhecido (SQLite ou Mongo)."""
+    try:
+        from app.services.auth_service import _mongo_users_ativo
+
+        if _mongo_users_ativo():
+            from app.repositories.users import UserRepository
+
+            utilizadores = UserRepository().listar()
+        else:
+            from app.models.user import User
+
+            utilizadores = User.query.all()
+    except Exception:  # noqa: BLE001
+        current_app.logger.exception("Pesquisa: falha ao ler os utilizadores da plataforma.")
+        return []
+    alvo = _sem_acentos(termo)
+    encontrados = []
+    for u in utilizadores:
+        email = (getattr(u, "email", None) or "").strip()
+        if not email or not getattr(u, "ativo", True):
+            continue
+        nome = getattr(u, "nome", None) or ""
+        if alvo in _sem_acentos(email) or alvo in _sem_acentos(nome) or alvo in _sem_acentos(u.username or ""):
+            encontrados.append({"email": email, "nome": nome or email.split("@")[0],
+                                "departamento": "", "cargo": "", "username": u.username,
+                                "origem": "plataforma"})
+    encontrados.sort(key=lambda p: (not _sem_acentos(p["email"]).startswith(alvo), p["nome"]))
+    return encontrados[:limite]
 
 
 # ---------------------------------------------------------------------------
