@@ -2,6 +2,7 @@
 
 from app.models.campo_dinamico import CampoDinamico, ValorCampoDinamico
 from app.models.configuracao import Configuracao
+from app.models.devolucao import Devolucao
 from app.models.historico import Historico
 from app.models.historico_entrega import HistoricoEntrega
 from app.models.item import ItemNota
@@ -21,4 +22,5 @@ __all__ = [
     "HistoricoEntrega",
     "CampoDinamico",
     "ValorCampoDinamico",
+    "Devolucao",
 ]

@@ -51,6 +51,7 @@ def _registar_extensoes(app):
     from app.models import (  # noqa: F401
         CampoDinamico,
         Configuracao,
+        Devolucao,
         Historico,
         HistoricoEntrega,
         ItemEntrega,
@@ -162,6 +163,13 @@ def _registar_contexto(app):
                 versao = 0
             _versao_assets[filename] = versao
         return url_for("static", filename=filename, v=versao)
+
+    @app.template_global()
+    def estado_devolucao(tipo, nota):
+        """'nenhuma' | 'parcial' | 'total' | None — ícone da lista de notas."""
+        from app.services.devolucao_service import estado_devolucao as _estado
+
+        return _estado(tipo, nota)
 
     @app.context_processor
     def injectar_globais():

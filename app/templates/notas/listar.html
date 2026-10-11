@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import estado_badge, render_paginacao_compacta, seletor_linhas %}
+{% from "macros.html" import estado_badge, render_paginacao_compacta, seletor_linhas, icone_devolucao %}
 {% block title %}Notas de Saída{% endblock %}
 {% block heading %}Notas de saída{% endblock %}
 {% block subtitle %}Pesquisa por referência Remedy, colaborador, estado ou período.{% endblock %}
@@ -141,7 +141,7 @@
                     </td>
                     <td>{{ nota.origem_local }}</td>
                     <td>{{ nota.data_emissao | formatar_data }}</td>
-                    <td>{{ estado_badge(nota.estado) }}</td>
+                    <td class="td-estado">{{ estado_badge(nota.estado) }}{{ icone_devolucao("saida", nota, "notas.devolucao") }}</td>
                     <td class="text-end">
                         {% if nota.pode_editar(current_user) %}
                         <form method="post" action="{{ url_for(request.blueprint ~ '.apagar', nota_id=nota.id) }}"
@@ -226,9 +226,11 @@
     </div>
 </div>
 {% endif %}
+{% include "includes/_modal_devolucao.html" %}
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ asset('js/devolucao.js') }}"></script>
 <script src="{{ asset('js/listar_notas.js') }}"></script>
 {% if current_user.is_tecnico() %}
 <script>

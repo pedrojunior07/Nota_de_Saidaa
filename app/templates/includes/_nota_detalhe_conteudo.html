@@ -211,8 +211,9 @@
     </div>
 
     <div class="col-lg-4">
-        <div class="panel">
-            <div class="panel-head"><h2>Histórico</h2></div>
+        {# Histórico e Devolução recolhidos: o utilizador clica para expandir. #}
+        <details class="panel painel-recolhivel" id="painelHistorico">
+            <summary>Histórico <span class="contagem">{{ historico | length }} {{ 'evento' if historico | length == 1 else 'eventos' }}</span></summary>
             <ol class="timeline">
                 {% for evento in historico %}
                 <li>
@@ -223,7 +224,34 @@
                 <li class="text-muted">Sem eventos registados.</li>
                 {% endfor %}
             </ol>
-        </div>
+        </details>
+
+        {% if nota.estado == 'concluida' %}
+        {% set _tipo_dev = 'entrega' if request.blueprint == 'entrega' else 'saida' %}
+        {% set _estado_dev = estado_devolucao(_tipo_dev, nota) %}
+        <details class="panel painel-recolhivel" id="painelDevolucao">
+            <summary>Devolução
+                <span class="contagem">{{ {'nenhuma': 'Sem devoluções', 'parcial': 'Parcial', 'total': 'Todos os itens devolvidos'}.get(_estado_dev, 'Sem devoluções') }}</span>
+            </summary>
+            {% for registo in devolucoes or [] %}
+            <div class="dev-registo">
+                <div class="dev-registo-cab">
+                    <strong>{{ registo.data | formatar_data(true) }}</strong>
+                    <span class="text-muted">{{ registo.registado_por }}</span>
+                </div>
+                <div class="text-muted">Motivo: {{ registo.motivo }} · Estado: {{ registo.estado_equipamento }}</div>
+                <ul>
+                    {% for item in registo.itens %}
+                    <li>{{ item.tipo_item }} — {{ item.descricao }}{% if item.numero_serie %} ({{ item.numero_serie }}){% endif %}</li>
+                    {% endfor %}
+                </ul>
+                {% if registo.observacao %}<div class="text-muted">{{ registo.observacao }}</div>{% endif %}
+            </div>
+            {% else %}
+            <p class="text-muted small mb-0">Sem devoluções registadas. Registe-as pelo ícone <i class="bi bi-arrow-return-left"></i> na lista de notas.</p>
+            {% endfor %}
+        </details>
+        {% endif %}
     </div>
 </div>
 

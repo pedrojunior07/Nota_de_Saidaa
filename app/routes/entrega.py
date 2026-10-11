@@ -385,11 +385,17 @@ def detalhe(nota_id):
     nota = _obter_ou_404(nota_id)
     if not _pode_ver(nota):
         abort(403)
-    historico = (
-        HistoricoEntrega.query.filter_by(nota_id=nota.id)
-        .order_by(HistoricoEntrega.data_hora.desc())
-        .all()
-    )
+    if hasattr(nota, "_doc"):
+        historico = nota.historico  # MongoDB: histórico guardado na própria nota
+    else:
+        historico = (
+            HistoricoEntrega.query.filter_by(nota_id=nota.id)
+            .order_by(HistoricoEntrega.data_hora.desc())
+            .all()
+        )
+    from app.services import devolucao_service
+
+    devolucoes = devolucao_service.registos("entrega", nota)
     form_decisao = DecisaoForm()
     form_decisao.tecnico_revisao.choices = entrega_service.choices_tecnicos()
     form_decisao.tecnico_revisao.data = str(nota.revisao_tecnico_id or nota.criado_por)
@@ -397,10 +403,44 @@ def detalhe(nota_id):
         "entrega/detalhe.html",
         nota=nota,
         historico=historico,
+        devolucoes=devolucoes,
         form_decisao=form_decisao,
         aprovadores=entrega_service.choices_aprovadores(),
         campos_valores=campos_dinamicos_service.valores_para_exibir("entrega", nota.id),
     )
+
+
+@bp.route("/<nota_id>/devolucao", methods=["GET", "POST"])
+@login_required
+def devolucao(nota_id):
+    """GET: itens da nota e o seu estado de devolução. POST (JSON): regista a
+    devolução de itens de uma nota concluída — sem gerar documento."""
+    from app.services import devolucao_service as dv
+
+    nota = _obter_ou_404(nota_id)
+    if not _pode_ver(nota):
+        abort(403)
+    if request.method == "GET":
+        return jsonify({
+            "numero": nota.numero_documento,
+            "colaborador": nota.funcionario,
+            "estado": dv.estado_devolucao("entrega", nota),
+            "pode_registar": dv.pode_registar(current_user, nota),
+            "itens": dv.itens_com_estado("entrega", nota),
+            "motivos": dv.MOTIVOS,
+            "estados_equipamento": dv.ESTADOS_EQUIPAMENTO,
+        })
+    dados = request.get_json(silent=True) or {}
+    try:
+        estado = dv.registar(
+            "entrega", nota, current_user, dados.get("itens"), dados.get("motivo"),
+            dados.get("estado_equipamento"), dados.get("observacao"),
+        )
+    except PermissionError as erro:
+        return jsonify({"error": str(erro)}), 403
+    except ValueError as erro:
+        return jsonify({"error": str(erro)}), 400
+    return jsonify({"ok": True, "estado": estado})
 
 
 @bp.route("/<nota_id>/email-recetor.eml")

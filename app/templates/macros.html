@@ -82,3 +82,18 @@
 </nav>
 {% endif %}
 {% endmacro %}
+
+
+{# Ícone de devolução no fim da coluna Estado (só notas concluídas com itens).
+   verde = nada devolvido · laranja = parcial · cinzento = tudo devolvido.
+   Abre a janela de devolução (includes/_modal_devolucao.html). #}
+{% macro icone_devolucao(tipo, nota, endpoint) %}
+{% set _estado = estado_devolucao(tipo, nota) %}
+{% if _estado %}
+{% set _titulo = {"nenhuma": "Registar devolução", "parcial": "Devolução parcial — ver ou registar mais itens", "total": "Todos os itens devolvidos"}[_estado] %}
+<button type="button" class="dev-icone dev-{{ _estado }}" data-devolucao-url="{{ url_for(endpoint, nota_id=nota.id) }}"
+        title="{{ _titulo }}" aria-label="{{ _titulo }}">
+    <i class="bi bi-arrow-return-left" aria-hidden="true"></i>
+</button>
+{% endif %}
+{% endmacro %}

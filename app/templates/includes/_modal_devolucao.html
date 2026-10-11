@@ -1,0 +1,37 @@
+{# Janela de devolução — aberta pelo ícone da coluna Estado (static/js/devolucao.js). #}
+<dialog class="dev-modal" id="devolucaoModal" aria-labelledby="devolucaoTitulo">
+    <form method="dialog" class="dev-modal-corpo" id="devolucaoForm" novalidate>
+        <div class="dev-modal-cabecalho">
+            <div>
+                <h3 id="devolucaoTitulo">Devolução de equipamento</h3>
+                <p class="text-muted small mb-0" id="devolucaoSubtitulo"></p>
+            </div>
+            <button type="button" class="btn-close" data-dev-fechar aria-label="Fechar"></button>
+        </div>
+
+        <div class="dev-itens" id="devolucaoItens"><p class="text-muted small">A carregar…</p></div>
+
+        <div id="devolucaoCampos">
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <label class="form-label" for="devolucaoMotivo">Motivo</label>
+                    <select class="form-select" id="devolucaoMotivo" required></select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="devolucaoEstado">Estado do equipamento</label>
+                    <select class="form-select" id="devolucaoEstado" required></select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="devolucaoObs">Observação <span class="text-muted small">(opcional)</span></label>
+                    <textarea class="form-control" id="devolucaoObs" rows="2" maxlength="500"></textarea>
+                </div>
+            </div>
+        </div>
+        <p class="dev-erro" id="devolucaoErro" role="alert" hidden></p>
+
+        <div class="dev-modal-acoes">
+            <button type="button" class="btn btn-outline-secondary" data-dev-fechar>Fechar</button>
+            <button type="submit" class="btn btn-navy" id="devolucaoGuardar">Registar devolução</button>
+        </div>
+    </form>
+</dialog>

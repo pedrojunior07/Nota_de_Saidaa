@@ -1996,3 +1996,54 @@ a.stat-card-link.rel-card.is-active {
 a.stat-card-link.rel-card.is-active small,
 a.stat-card-link.rel-card.is-active strong { color: #fff; }
 a.stat-card-link.rel-card.is-active .stat-icon { background: rgba(255, 255, 255, .18); color: #fff; }
+
+
+/* ---------------------------------------------------------------------------
+   Devolução de equipamento
+   --------------------------------------------------------------------------- */
+.td-estado { white-space: nowrap; }
+.dev-icone {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; margin-left: 8px; vertical-align: middle;
+    border-radius: 8px; border: 1px solid transparent; cursor: pointer;
+    font-size: 15px; line-height: 1; transition: transform .1s ease, box-shadow .12s ease;
+}
+.dev-icone:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(11, 58, 110, .18); }
+.dev-icone:focus-visible { outline: 2px solid var(--secondary); outline-offset: 2px; }
+.dev-nenhuma { background: #E7F6EC; border-color: #9ED3AE; color: #1E7B3A; }
+.dev-parcial { background: #FFF1E3; border-color: #F2B579; color: #B35A0E; }
+.dev-total   { background: #EEF1F5; border-color: #C9D1DC; color: #7C8AA0; }
+
+.dev-modal { width: min(640px, 94vw); border: 0; border-radius: 16px; padding: 0; box-shadow: 0 24px 60px rgba(11, 31, 68, .28); }
+.dev-modal::backdrop { background: rgba(11, 31, 68, .45); }
+.dev-modal-corpo { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
+.dev-modal-cabecalho { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.dev-modal-cabecalho h3 { margin: 0; font-size: 1.15rem; color: var(--navy); }
+.dev-itens { display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; }
+.dev-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid #DDE3EC; border-radius: 10px; cursor: pointer; }
+.dev-item input { margin-top: 3px; }
+.dev-item-texto { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.dev-item-texto small { color: var(--muted, #6c757d); }
+.dev-item.is-devolvido { background: #F4F6FA; color: #7C8AA0; cursor: default; }
+.dev-item-estado { font-size: 12px; color: #7C8AA0; white-space: nowrap; }
+.dev-todos { font-size: 13px; color: var(--navy); display: flex; gap: 8px; align-items: center; }
+.dev-aviso { margin: 0; padding: 8px 12px; border-radius: 8px; background: #EEF1F5; color: #4A5A73; font-size: 13px; }
+.dev-erro { margin: 0; color: #B3261E; font-size: 13px; }
+.dev-modal-acoes { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Detalhe da nota: Histórico e Devolução recolhidos (clicar para expandir) */
+.painel-recolhivel > summary {
+    list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; font-weight: 600; color: var(--navy); font-size: 1rem;
+}
+.painel-recolhivel > summary::-webkit-details-marker { display: none; }
+.painel-recolhivel > summary::after { content: "\F282"; font-family: "bootstrap-icons"; font-size: 14px; transition: transform .15s ease; }
+.painel-recolhivel[open] > summary::after { transform: rotate(180deg); }
+.painel-recolhivel > summary .contagem { margin-left: auto; font-size: 12px; font-weight: 500; color: var(--muted, #6c757d); }
+.painel-recolhivel[open] > summary { margin-bottom: 12px; }
+.painel-recolhivel + .painel-recolhivel { margin-top: 16px; }
+.dev-registo { padding: 10px 0; border-top: 1px solid #E6EAF0; }
+.dev-registo:first-child { border-top: 0; padding-top: 0; }
+.dev-registo-cab { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.dev-registo ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+.dev-registo .text-muted { font-size: 12px; }

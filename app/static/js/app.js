@@ -139,6 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener("keydown", (ev) => {
         const linha = ev.target.closest?.("[data-href]");
         if (!linha || (ev.key !== "Enter" && ev.key !== " ")) return;
+        if (ev.target !== linha && ev.target.closest("a, button, input, select, textarea")) return;
         ev.preventDefault();
         window.location = linha.dataset.href;
     });
