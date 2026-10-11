@@ -420,10 +420,13 @@ def devolucao(nota_id):
             "tipos": TIPOS_ITEM,
             "completa": dv.devolucao_completa("saida", nota),
             "ja_devolvidos": [i for r in dv.registos("saida", nota) for i in r["itens"]],
+            "entradas": dv.entradas_manuais("saida", nota) if dv.modo_manual(nota) else [],
         })
     dados = request.get_json(silent=True) or {}
     try:
-        if dv.modo_manual(nota):
+        if dados.get("acao") == "editar":
+            estado = dv.editar_manual("saida", nota, current_user, dados.get("entradas"), dados.get("completa"))
+        elif dv.modo_manual(nota):
             estado = dv.registar_manual(
                 "saida", nota, current_user, dados.get("itens_manuais"), dados.get("motivo"),
                 dados.get("estado_equipamento"), dados.get("observacao"), bool(dados.get("completa")),

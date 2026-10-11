@@ -257,6 +257,110 @@ def registar_manual(tipo: str, nota, utilizador, itens_manuais, motivo, estado_e
     return estado_devolucao(tipo, nota)
 
 
+def entradas_manuais(tipo: str, nota) -> list[dict]:
+    """Equipamentos escritos à mão numa nota carregada, cada um com um
+    identificador para edição: SQLite 's<id>', MongoDB 'm<posição no array>'."""
+    if _e_mongo(nota):
+        fonte = [(f"m{i}", d) for i, d in enumerate(nota._doc.get("devolucoes") or [])]
+        get = lambda d, k: d.get(k)  # noqa: E731
+    else:
+        from app.models.devolucao import Devolucao
+
+        fonte = [(f"s{d.id}", d) for d in Devolucao.query.filter_by(
+            nota_tipo=tipo, nota_id=str(nota.id)).order_by(Devolucao.id).all()]
+        get = getattr
+    entradas = []
+    for chave, d in fonte:
+        if not get(d, "tipo_item"):
+            continue
+        data = get(d, "data")
+        entradas.append({
+            "entrada_id": chave,
+            "tipo_item": get(d, "tipo_item") or "",
+            "descricao": get(d, "descricao") or "",
+            "numero_serie": get(d, "numero_serie") or "",
+            "quantidade": get(d, "quantidade") or 1,
+            "data_devolucao": data.strftime("%d/%m/%Y") if data else "",
+        })
+    return entradas
+
+
+def editar_manual(tipo: str, nota, utilizador, entradas, completa) -> str:
+    """Corrige os equipamentos já registados numa nota carregada (tipo,
+    descrição, nº de série, quantidade), remove entradas e marca/desmarca a
+    devolução completa. Data, motivo e quem registou ficam preservados."""
+    from app.utils.constants import TIPOS_ITEM
+
+    if not pode_registar(utilizador, nota):
+        raise PermissionError("Só técnicos podem editar devoluções de notas concluídas.")
+    if not modo_manual(nota):
+        raise ValueError("Só as devoluções de notas carregadas podem ser editadas.")
+    existentes = {e["entrada_id"] for e in entradas_manuais(tipo, nota)}
+    alteracoes, remover = {}, set()
+    for bruto in entradas or []:
+        chave = str(bruto.get("entrada_id") or "")
+        if chave not in existentes:
+            raise ValueError("Uma das linhas a editar já não existe. Feche e volte a abrir a janela.")
+        if bruto.get("remover"):
+            remover.add(chave)
+            continue
+        tipo_item = (bruto.get("tipo_item") or "").strip()
+        descricao = (bruto.get("descricao") or "").strip()[:255]
+        if tipo_item not in TIPOS_ITEM:
+            raise ValueError("Escolha o tipo de cada equipamento.")
+        if not descricao:
+            raise ValueError("Escreva a descrição de cada equipamento.")
+        try:
+            quantidade = max(1, int(bruto.get("quantidade") or 1))
+        except (TypeError, ValueError):
+            raise ValueError("Quantidade inválida.") from None
+        alteracoes[chave] = {"tipo_item": tipo_item, "descricao": descricao,
+                             "numero_serie": (bruto.get("numero_serie") or "").strip()[:100] or None,
+                             "quantidade": quantidade}
+    completa = bool(completa) and len(existentes - remover) > 0
+
+    if _e_mongo(nota):
+        from app.repositories.mongo_common import as_object_id
+
+        if tipo == "saida":
+            from app.repositories.notas import MongoNotaRepository as Repo
+        else:
+            from app.repositories.entrega import MongoEntregaRepository as Repo
+        novas = []
+        for i, d in enumerate(nota._doc.get("devolucoes") or []):
+            chave = f"m{i}"
+            if chave in remover:
+                continue
+            d = dict(d)
+            if chave in alteracoes:
+                d.update(alteracoes[chave])
+            if d.get("tipo_item"):
+                d["completa"] = completa
+            novas.append(d)
+        Repo().col.update_one({"_id": as_object_id(nota.id)}, {"$set": {"devolucoes": novas}})
+        nota._doc["devolucoes"] = novas
+    else:
+        from app.extensions import db
+        from app.models.devolucao import Devolucao
+
+        for d in Devolucao.query.filter_by(nota_tipo=tipo, nota_id=str(nota.id)).all():
+            chave = f"s{d.id}"
+            if chave in remover:
+                db.session.delete(d)
+                continue
+            for campo, valor in alteracoes.get(chave, {}).items():
+                setattr(d, campo, valor)
+            if d.tipo_item:
+                d.completa = completa
+        db.session.commit()
+
+    acao = f"Editou a devolução ({len(alteracoes)} equipamento(s) mantido(s)"
+    acao += f", {len(remover)} removido(s))." if remover else ")."
+    acao += " Devolução completa." if completa else " Devolução não completa."
+    _registar_historico_texto(tipo, nota, utilizador, acao)
+    return estado_devolucao(tipo, nota)
+
+
 def registar(tipo: str, nota, utilizador, item_ids, motivo, estado_equipamento, observacao=None) -> str:
     """Regista a devolução dos itens indicados. Devolve o novo estado."""
     motivo, estado_equipamento, observacao = _validar_comum(
@@ -274,10 +378,14 @@ def registar(tipo: str, nota, utilizador, item_ids, motivo, estado_equipamento, 
 
 
 def _registar_historico(tipo, nota, utilizador, n, motivo, completa=False):
+    acao = f"Registou a devolução de {n} item(ns). Motivo: {motivo}."
+    if completa:
+        acao += " Devolução completa."
+    _registar_historico_texto(tipo, nota, utilizador, acao)
+
+
+def _registar_historico_texto(tipo, nota, utilizador, acao):
     try:
-        acao = f"Registou a devolução de {n} item(ns). Motivo: {motivo}."
-        if completa:
-            acao += " Devolução completa."
         if tipo == "saida":
             from app.services import historico_service
 

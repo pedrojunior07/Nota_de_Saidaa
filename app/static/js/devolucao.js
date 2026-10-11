@@ -19,6 +19,18 @@
     const campos = $("devolucaoCampos");
     const erro = $("devolucaoErro");
     const guardar = $("devolucaoGuardar");
+    const btnFechar = $("devolucaoFechar");
+    const btnEditar = $("devolucaoEditar");
+    let ultimosDados = null;
+
+    // Rodapé: nas notas carregadas o «Fechar» dá lugar ao «Editar devolução».
+    const rodape = ({ fechar = true, editar = false, editarTexto = null, guardarTexto = "Registar devolução", guardarVisivel = false } = {}) => {
+        btnFechar.hidden = !fechar;
+        btnEditar.hidden = !editar;
+        btnEditar.innerHTML = editarTexto || '<i class="bi bi-pencil" aria-hidden="true"></i> Editar devolução';
+        guardar.textContent = guardarTexto;
+        guardar.hidden = !guardarVisivel;
+    };
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
     const TITULOS = {
         nenhuma: "Registar devolução",
@@ -55,7 +67,10 @@
         </div>`;
 
     const desenharManual = (dados) => {
+        ultimosDados = dados;
+        atual.modo = "manual";
         const editavel = dados.pode_registar && !dados.completa;
+        const podeEditar = dados.pode_registar && (dados.entradas || []).length > 0;
         const jaDevolvidos = (dados.ja_devolvidos || []).map((i) => `
             <div class="dev-item is-devolvido">
                 <span class="dev-item-texto">
@@ -65,10 +80,12 @@
                 </span>
                 <span class="dev-item-estado">Devolvido em ${escapar(i.data_devolucao)}</span>
             </div>`).join("");
-        let html = '<p class="dev-aviso">Esta nota foi carregada a partir de um PDF e não tem a lista de equipamentos na plataforma. Indique o que está a ser devolvido.</p>';
+        let html = dados.completa
+            ? ""
+            : '<p class="dev-aviso">Esta nota foi carregada a partir de um PDF e não tem a lista de equipamentos na plataforma. Indique o que está a ser devolvido.</p>';
         if (jaDevolvidos) html += jaDevolvidos;
         if (dados.completa) {
-            html += '<p class="dev-aviso">A devolução desta nota está completa.</p>';
+            html += '<p class="dev-aviso dev-aviso-ok"><i class="bi bi-check2-circle" aria-hidden="true"></i> A devolução desta nota está completa.</p>';
         } else if (editavel) {
             html += `<div id="devManualLinhas">${linhaManual(dados.tipos)}</div>
                 <button type="button" class="btn btn-sm btn-outline-navy align-self-start" id="devManualAdicionar">
@@ -77,7 +94,7 @@
         }
         lista.innerHTML = html;
         campos.hidden = !editavel;
-        guardar.hidden = !editavel;
+        rodape({ fechar: false, editar: podeEditar, guardarVisivel: editavel });
         if (editavel) {
             opcoes($("devolucaoMotivo"), dados.motivos);
             opcoes($("devolucaoEstado"), dados.estados_equipamento);
@@ -88,7 +105,45 @@
         }
     };
 
+    // ---- Edição das devoluções de uma nota carregada ----
+    const desenharEdicao = (dados) => {
+        atual.modo = "editar";
+        const linhas = (dados.entradas || []).map((e) => `
+            <div class="dev-manual-linha dev-edicao-linha" data-entrada="${escapar(e.entrada_id)}">
+                <select class="form-select form-select-sm" data-campo="tipo_item" aria-label="Tipo">
+                    ${dados.tipos.map((t) => `<option value="${escapar(t)}" ${t === e.tipo_item ? "selected" : ""}>${escapar(t)}</option>`).join("")}
+                    ${dados.tipos.includes(e.tipo_item) ? "" : `<option value="${escapar(e.tipo_item)}" selected>${escapar(e.tipo_item)}</option>`}
+                </select>
+                <input class="form-control form-control-sm" data-campo="descricao" value="${escapar(e.descricao)}" maxlength="255" aria-label="Descrição">
+                <input class="form-control form-control-sm" data-campo="numero_serie" value="${escapar(e.numero_serie)}" placeholder="Nº de série" maxlength="100" aria-label="Nº de série">
+                <input class="form-control form-control-sm" data-campo="quantidade" type="number" min="1" value="${escapar(e.quantidade)}" aria-label="Quantidade">
+                <button type="button" class="btn btn-sm btn-outline-danger" data-dev-marcar-remover title="Remover esta linha" aria-label="Remover esta linha">
+                    <i class="bi bi-trash3" aria-hidden="true"></i></button>
+            </div>`).join("");
+        lista.innerHTML = `<p class="dev-aviso">Corrija os equipamentos devolvidos ou remova linhas registadas por engano.
+                A data, o motivo e quem registou mantêm-se.</p>${linhas}
+            <label class="dev-todos"><input type="checkbox" id="devEdicaoCompleta" ${dados.completa ? "checked" : ""}> Todo o material desta nota foi devolvido</label>`;
+        campos.hidden = true;
+        rodape({ fechar: false, editar: true, editarTexto: "Cancelar edição", guardarTexto: "Guardar alterações", guardarVisivel: true });
+    };
+
+    btnEditar.addEventListener("click", () => {
+        mostrarErro("");
+        if (!ultimosDados) return;
+        if (atual.modo === "editar") desenharManual(ultimosDados);
+        else desenharEdicao(ultimosDados);
+    });
+
     lista.addEventListener("click", (ev) => {
+        const marcar = ev.target.closest("[data-dev-marcar-remover]");
+        if (marcar) {
+            const linha = marcar.closest(".dev-edicao-linha");
+            const removida = linha.classList.toggle("is-removida");
+            linha.querySelectorAll("input, select").forEach((c) => { c.disabled = removida; });
+            marcar.title = removida ? "Manter esta linha" : "Remover esta linha";
+            marcar.innerHTML = removida ? '<i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>' : '<i class="bi bi-trash3" aria-hidden="true"></i>';
+            return;
+        }
         const remover = ev.target.closest("[data-dev-remover]");
         if (!remover) return;
         const linhas = lista.querySelectorAll(".dev-manual-linha");
@@ -102,6 +157,7 @@
         $("devolucaoSubtitulo").textContent = `Nota ${dados.numero} · ${dados.colaborador || ""}`;
         atual.modo = dados.modo || "itens";
         if (atual.modo === "manual") return desenharManual(dados);
+        rodape({ fechar: true, editar: false });
         const porDevolver = dados.itens.filter((i) => !i.devolvido);
         const editavel = dados.pode_registar && porDevolver.length > 0;
 
@@ -140,7 +196,8 @@
         mostrarErro("");
         lista.innerHTML = '<p class="text-muted small">A carregar…</p>';
         campos.hidden = true;
-        guardar.hidden = true;
+        rodape({ fechar: true, editar: false });
+        ultimosDados = null;
         modal.showModal();
         try {
             const resp = await fetch(atual.url, { headers: { Accept: "application/json" }, credentials: "same-origin" });
@@ -166,8 +223,16 @@
         const motivo = $("devolucaoMotivo").value;
         const estado = $("devolucaoEstado").value;
         const observacao = $("devolucaoObs").value.trim();
-        const corpo = { motivo, estado_equipamento: estado, observacao };
-        if (atual.modo === "manual") {
+        let corpo = { motivo, estado_equipamento: estado, observacao };
+        if (atual.modo === "editar") {
+            const entradas = [...lista.querySelectorAll(".dev-edicao-linha")].map((l) => {
+                const v = (c) => l.querySelector(`[data-campo="${c}"]`).value.trim();
+                return { entrada_id: l.dataset.entrada, remover: l.classList.contains("is-removida"),
+                         tipo_item: v("tipo_item"), descricao: v("descricao"), numero_serie: v("numero_serie"), quantidade: v("quantidade") };
+            });
+            if (entradas.some((e) => !e.remover && !e.descricao)) return mostrarErro("Escreva a descrição de cada equipamento.");
+            corpo = { acao: "editar", entradas, completa: $("devEdicaoCompleta")?.checked || false };
+        } else if (atual.modo === "manual") {
             const linhas = [...lista.querySelectorAll(".dev-manual-linha")].map((l) => {
                 const v = (c) => l.querySelector(`[data-campo="${c}"]`).value.trim();
                 return { tipo_item: v("tipo_item"), descricao: v("descricao"), numero_serie: v("numero_serie"), quantidade: v("quantidade") };
@@ -181,9 +246,11 @@
             corpo.itens = [...lista.querySelectorAll(".dev-item input:checked:not([disabled])")].map((c) => c.value);
             if (!corpo.itens.length) return mostrarErro("Selecione pelo menos um item.");
         }
-        if (!motivo) return mostrarErro("Escolha o motivo da devolução.");
-        if (!estado) return mostrarErro("Indique o estado do equipamento.");
-        if (motivo === "Outro" && !observacao) return mostrarErro("Descreva o motivo na observação.");
+        if (corpo.acao !== "editar" && !motivo) return mostrarErro("Escolha o motivo da devolução.");
+        if (corpo.acao !== "editar") {
+            if (!estado) return mostrarErro("Indique o estado do equipamento.");
+            if (motivo === "Outro" && !observacao) return mostrarErro("Descreva o motivo na observação.");
+        }
 
         guardar.disabled = true;
         try {
@@ -204,7 +271,8 @@
                 return;
             }
             globalThis.showToast?.(
-                json.estado === "total" ? "Devolução registada: todos os itens devolvidos." : "Devolução registada.",
+                corpo.acao === "editar" ? "Devolução atualizada."
+                    : json.estado === "total" ? "Devolução registada: todos os itens devolvidos." : "Devolução registada.",
                 "success");
         } catch (e) {
             mostrarErro(e.message);

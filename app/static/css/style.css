@@ -2058,3 +2058,5 @@ a.stat-card-link.rel-card.is-active .stat-icon { background: rgba(255, 255, 255,
 .dev-manual-linha { display: grid; grid-template-columns: 1.8fr 1.5fr 1fr 60px auto; gap: 6px; margin-bottom: 6px; }
 @media (max-width: 576px) { .dev-manual-linha { grid-template-columns: 1fr 1fr; } }
 .dev-completa { display: inline-block; margin-top: 4px; font-size: 12px; font-weight: 600; color: #1E7B3A; }
+.dev-aviso-ok { background: #E7F6EC; color: #1E7B3A; }
+.dev-edicao-linha.is-removida input, .dev-edicao-linha.is-removida select { text-decoration: line-through; opacity: .5; }

@@ -30,7 +30,11 @@
         <p class="dev-erro" id="devolucaoErro" role="alert" hidden></p>
 
         <div class="dev-modal-acoes">
-            <button type="button" class="btn btn-outline-secondary" data-dev-fechar>Fechar</button>
+            <button type="button" class="btn btn-outline-secondary" id="devolucaoFechar" data-dev-fechar>Fechar</button>
+            {# Notas carregadas: substitui o «Fechar» (fecha-se pelo X). #}
+            <button type="button" class="btn btn-outline-navy" id="devolucaoEditar" hidden>
+                <i class="bi bi-pencil" aria-hidden="true"></i> Editar devolução
+            </button>
             <button type="submit" class="btn btn-navy" id="devolucaoGuardar">Registar devolução</button>
         </div>
     </form>
