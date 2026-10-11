@@ -242,9 +242,10 @@
                 <div class="text-muted">Motivo: {{ registo.motivo }} · Estado: {{ registo.estado_equipamento }}</div>
                 <ul>
                     {% for item in registo.itens %}
-                    <li>{{ item.tipo_item }} — {{ item.descricao }}{% if item.numero_serie %} ({{ item.numero_serie }}){% endif %}</li>
+                    <li>{{ item.tipo_item }} — {{ item.descricao }}{% if item.numero_serie %} ({{ item.numero_serie }}){% endif %}{% if item.quantidade and item.quantidade > 1 %} · Qtd. {{ item.quantidade }}{% endif %}</li>
                     {% endfor %}
                 </ul>
+                {% if registo.completa %}<span class="dev-completa"><i class="bi bi-check2-circle" aria-hidden="true"></i> Devolução completa</span>{% endif %}
                 {% if registo.observacao %}<div class="text-muted">{{ registo.observacao }}</div>{% endif %}
             </div>
             {% else %}

@@ -23,6 +23,14 @@ class Devolucao(db.Model):
     estado_equipamento = db.Column(db.String(30), nullable=True)
     motivo = db.Column(db.String(80), nullable=True)
     observacao = db.Column(db.String(500), nullable=True)
+    # Notas carregadas (só PDF, sem lista de itens): o técnico escreve o
+    # equipamento devolvido. Vazio nas notas normais (usam item_id).
+    tipo_item = db.Column(db.String(80), nullable=True)
+    descricao = db.Column(db.String(255), nullable=True)
+    numero_serie = db.Column(db.String(100), nullable=True)
+    quantidade = db.Column(db.Integer, nullable=True)
+    # Nas notas carregadas, o técnico indica que todo o material foi devolvido.
+    completa = db.Column(db.Boolean, nullable=False, default=False, server_default="0")
 
     __table_args__ = (
         db.Index("ix_devolucoes_nota", "nota_tipo", "nota_id"),

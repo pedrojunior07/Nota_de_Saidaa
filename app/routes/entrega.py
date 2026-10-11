@@ -429,13 +429,24 @@ def devolucao(nota_id):
             "itens": dv.itens_com_estado("entrega", nota),
             "motivos": dv.MOTIVOS,
             "estados_equipamento": dv.ESTADOS_EQUIPAMENTO,
+            # Notas sem itens (carregadas a partir de PDF): equipamento escrito à mão.
+            "modo": "manual" if dv.modo_manual(nota) else "itens",
+            "tipos": TIPOS_ITEM,
+            "completa": dv.devolucao_completa("entrega", nota),
+            "ja_devolvidos": [i for r in dv.registos("entrega", nota) for i in r["itens"]],
         })
     dados = request.get_json(silent=True) or {}
     try:
-        estado = dv.registar(
-            "entrega", nota, current_user, dados.get("itens"), dados.get("motivo"),
-            dados.get("estado_equipamento"), dados.get("observacao"),
-        )
+        if dv.modo_manual(nota):
+            estado = dv.registar_manual(
+                "entrega", nota, current_user, dados.get("itens_manuais"), dados.get("motivo"),
+                dados.get("estado_equipamento"), dados.get("observacao"), bool(dados.get("completa")),
+            )
+        else:
+            estado = dv.registar(
+                "entrega", nota, current_user, dados.get("itens"), dados.get("motivo"),
+                dados.get("estado_equipamento"), dados.get("observacao"),
+            )
     except PermissionError as erro:
         return jsonify({"error": str(erro)}), 403
     except ValueError as erro:

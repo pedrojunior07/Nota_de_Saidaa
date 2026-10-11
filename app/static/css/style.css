@@ -2014,7 +2014,7 @@ a.stat-card-link.rel-card.is-active .stat-icon { background: rgba(255, 255, 255,
 .dev-parcial { background: #FFF1E3; border-color: #F2B579; color: #B35A0E; }
 .dev-total   { background: #EEF1F5; border-color: #C9D1DC; color: #7C8AA0; }
 
-.dev-modal { width: min(640px, 94vw); border: 0; border-radius: 16px; padding: 0; box-shadow: 0 24px 60px rgba(11, 31, 68, .28); }
+.dev-modal { width: min(700px, 94vw); border: 0; border-radius: 16px; padding: 0; box-shadow: 0 24px 60px rgba(11, 31, 68, .28); }
 .dev-modal::backdrop { background: rgba(11, 31, 68, .45); }
 .dev-modal-corpo { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
 .dev-modal-cabecalho { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
@@ -2053,3 +2053,8 @@ a.stat-card-link.rel-card.is-active .stat-icon { background: rgba(255, 255, 255,
 .rel-dev { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 7px; border: 1px solid; font-size: 14px; }
 .rel-dev-sim { background: #E7F6EC; border-color: #9ED3AE; color: #1E7B3A; }
 .rel-dev-nao { background: #EEF1F5; border-color: #C9D1DC; color: #9AA5B5; }
+
+/* Devolução de notas carregadas: linhas de equipamento escritas à mão */
+.dev-manual-linha { display: grid; grid-template-columns: 1.8fr 1.5fr 1fr 60px auto; gap: 6px; margin-bottom: 6px; }
+@media (max-width: 576px) { .dev-manual-linha { grid-template-columns: 1fr 1fr; } }
+.dev-completa { display: inline-block; margin-top: 4px; font-size: 12px; font-weight: 600; color: #1E7B3A; }
