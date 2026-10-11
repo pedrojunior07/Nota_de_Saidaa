@@ -17,11 +17,23 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas as pdfcanvas
 from reportlab.platypus import (
-    KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+    Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
 )
 
 from app.services.pdf_service import ASSET_LOGO
 from app.services.relatorio_service import MODULOS, Relatorio
+
+# Ícone de devolução (o mesmo da página): verde = devolvido, cinzento = ainda não.
+_ASSETS = os.path.dirname(ASSET_LOGO)
+ICONE_DEV_SIM = os.path.join(_ASSETS, "devolucao_sim.png")
+ICONE_DEV_NAO = os.path.join(_ASSETS, "devolucao_nao.png")
+
+
+def _icone_devolucao(devolvido: bool, tamanho=4.6 * mm):
+    caminho = ICONE_DEV_SIM if devolvido else ICONE_DEV_NAO
+    if not os.path.isfile(caminho):
+        return "Sim" if devolvido else "—"
+    return Image(caminho, width=tamanho, height=tamanho)
 
 PAGINA = landscape(A4)
 LARGURA, ALTURA = PAGINA
@@ -167,22 +179,29 @@ def gerar_pdf(rel: Relatorio, gerado_por: str, gerado_em: str, origem: str = "Se
 
     # -- detalhe -------------------------------------------------------------
     cab = ["Data", "Nota", "Ref. Remedy", "Colaborador", "Departamento", "Tipo", "Descrição",
-           "Nº de série", "Técnico"]
-    larg = [20 * mm, 21 * mm, 30 * mm, 32 * mm, 26 * mm, 31 * mm, 38 * mm, 28 * mm]
-    larg.append(util - sum(larg))
+           "Nº de série", "Técnico", "Dev."]
+    larg = [20 * mm, 21 * mm, 30 * mm, 31 * mm, 25 * mm, 30 * mm, 37 * mm, 27 * mm]
+    larg += [util - sum(larg) - 11 * mm, 11 * mm]
     c = est["celula"]
     dados = [cab] + [
         [f"{l['data']:%d/%m/%Y}", l["numero_nota"], l["referencia"], Paragraph(l["colaborador"], c),
          Paragraph(l["departamento"], c), Paragraph(l["tipo"], c), Paragraph(l["descricao"], c),
-         Paragraph(l["numero_serie"] or "—", c), Paragraph(l["tecnico"], c)]
+         Paragraph(l["numero_serie"] or "—", c), Paragraph(l["tecnico"], c),
+         _icone_devolucao(l.get("foi_devolvido", False))]
         for l in rel.linhas
     ]
     if not rel.linhas:
-        dados.append(["Sem equipamentos entregues neste período."] + [""] * 8)
+        dados.append(["Sem equipamentos entregues neste período."] + [""] * 9)
     detalhe = _tabela(dados, larg,
-                      estilos=[("SPAN", (0, 1), (-1, 1))] if not rel.linhas else None)
+                      estilos=[("ALIGN", (-1, 0), (-1, -1), "CENTER")]
+                      + ([("SPAN", (0, 1), (-1, 1))] if not rel.linhas else []))
     story.append(KeepTogether([Paragraph("Detalhe dos equipamentos entregues", est["secao"])]))
     story.append(detalhe)
+    if rel.linhas and os.path.isfile(ICONE_DEV_SIM):
+        legenda = (f'<img src="{ICONE_DEV_SIM}" width="9" height="9" valign="middle"/> devolvido'
+                   f' &nbsp;&nbsp; <img src="{ICONE_DEV_NAO}" width="9" height="9" valign="middle"/> ainda não devolvido')
+        story.append(Spacer(1, 4))
+        story.append(Paragraph("Dev. (devolução): " + legenda, est["sub"]))
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
