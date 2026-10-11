@@ -120,8 +120,7 @@
                 <button type="button" class="btn btn-sm btn-outline-danger" data-dev-marcar-remover title="Remover esta linha" aria-label="Remover esta linha">
                     <i class="bi bi-trash3" aria-hidden="true"></i></button>
             </div>`).join("");
-        lista.innerHTML = `<p class="dev-aviso">Corrija os equipamentos devolvidos ou remova linhas registadas por engano.
-                A data, o motivo e quem registou mantêm-se.</p>${linhas}
+        lista.innerHTML = `${linhas}
             <label class="dev-todos"><input type="checkbox" id="devEdicaoCompleta" ${dados.completa ? "checked" : ""}> Todo o material desta nota foi devolvido</label>`;
         campos.hidden = true;
         rodape({ fechar: false, editar: true, editarTexto: "Cancelar edição", guardarTexto: "Guardar alterações", guardarVisivel: true });
