@@ -60,6 +60,7 @@ def index():
         modulo=relatorio_service.MODULOS[tipo],
         periodo=periodo,
         periodos=relatorio_service.PERIODOS,
+        filtros_modulo=relatorio_service.FILTROS_POR_MODULO[tipo],
         icones_tipo=relatorio_service.ICONES_TIPO,
         icone_omissao=relatorio_service.ICONE_TIPO_OMISSAO,
         paginacao=paginacao,

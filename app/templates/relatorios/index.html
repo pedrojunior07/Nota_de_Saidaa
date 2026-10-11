@@ -31,7 +31,7 @@
             </div>
         </div>
         <div class="row g-2 align-items-end mt-0">
-            {% for chave, rotulo in [('tipo','Tipo de equipamento'), ('departamento','Departamento'), ('local','Local'), ('motivo','Motivo'), ('tecnico','Técnico')] %}
+            {% for chave, rotulo in filtros_modulo %}
             <div class="col-md">
                 <label class="form-label" for="rel_{{ chave }}">{{ rotulo }}</label>
                 <select class="form-select" name="{{ chave }}" id="rel_{{ chave }}">
@@ -123,6 +123,7 @@
             <thead><tr>
                 <th>Data</th><th>Nota</th><th>Ref. Remedy</th><th>Colaborador</th><th>Departamento</th>
                 <th>Tipo</th><th>Descrição</th><th>Nº de série</th><th>Técnico</th>
+                <th class="text-center" title="Devolução"><i class="bi bi-arrow-return-left" aria-hidden="true"></i><span class="visually-hidden">Devolução</span></th>
             </tr></thead>
             <tbody>
             {% for l in paginacao.items %}
@@ -137,9 +138,15 @@
                 <td>{{ l.descricao }}</td>
                 <td>{{ l.numero_serie or '—' }}</td>
                 <td>{{ l.tecnico }}</td>
+                <td class="text-center">
+                    {% set _t = 'Devolvido em ' ~ (l.data_devolucao | formatar_data) if l.foi_devolvido else 'Ainda não devolvido' %}
+                    <span class="rel-dev {{ 'rel-dev-sim' if l.foi_devolvido else 'rel-dev-nao' }}" title="{{ _t }}" aria-label="{{ _t }}">
+                        <i class="bi bi-arrow-return-left" aria-hidden="true"></i>
+                    </span>
+                </td>
             </tr>
             {% else %}
-            <tr><td colspan="9" class="text-muted">Sem equipamentos entregues neste período.</td></tr>
+            <tr><td colspan="10" class="text-muted">Sem equipamentos entregues neste período.</td></tr>
             {% endfor %}
             </tbody>
         </table>

@@ -239,7 +239,7 @@ a { color: var(--navy); }
     background: #fff;
     border-bottom: 1px solid var(--line);
     height: var(--header-h);
-    padding: 0 24px;
+    padding: 0 16px;
     display: flex;
     align-items: center;
     gap: 16px;
@@ -364,7 +364,7 @@ h6 {
     letter-spacing: 0;
 }
 
-.content { padding: 24px; }
+.content { padding: 14px 16px; }
 
 .nota-form-page .main-area { height: 100vh; min-height: 0; }
 .nota-form-page .content {
@@ -634,7 +634,7 @@ h6 {
     background: #fff;
     border: 1px solid var(--line);
     border-radius: 14px;
-    padding: 20px;
+    padding: 16px;
     box-shadow: 0 8px 24px rgba(11, 58, 110, .04);
 }
 
@@ -2048,3 +2048,8 @@ a.stat-card-link.rel-card.is-active .stat-icon { background: rgba(255, 255, 255,
 .dev-registo ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
 .dev-registo .text-muted { font-size: 12px; }
 .dev-vazio { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+
+/* Relatório: devolução por equipamento (verde = devolvido, cinzento = ainda não) */
+.rel-dev { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 7px; border: 1px solid; font-size: 14px; }
+.rel-dev-sim { background: #E7F6EC; border-color: #9ED3AE; color: #1E7B3A; }
+.rel-dev-nao { background: #EEF1F5; border-color: #C9D1DC; color: #9AA5B5; }

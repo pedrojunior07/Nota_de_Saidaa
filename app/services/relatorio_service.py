@@ -36,7 +36,17 @@ PERIODOS = {
     "personalizado": "Personalizado",
 }
 
-FILTROS_TEXTO = ("tipo", "departamento", "local", "motivo", "tecnico")
+FILTROS_TEXTO = ("tipo", "departamento", "local", "devolvido", "motivo", "tecnico")
+
+# Filtros mostrados por módulo. Na Nota de Saída (uso interno) o «Local» não
+# acrescenta nada e dá lugar ao filtro de devolução.
+FILTROS_POR_MODULO = {
+    "saida": [("tipo", "Tipo de equipamento"), ("departamento", "Departamento"),
+              ("devolvido", "Devolução"), ("motivo", "Motivo"), ("tecnico", "Técnico")],
+    "entrega": [("tipo", "Tipo de equipamento"), ("departamento", "Departamento"),
+                ("local", "Local"), ("motivo", "Motivo"), ("tecnico", "Técnico")],
+}
+DEVOLVIDO_SIM, DEVOLVIDO_NAO = "Devolvidos", "Não devolvidos"
 
 ICONES_TIPO = {
     "Computador Portátil": "bi-laptop",
@@ -161,7 +171,7 @@ class Relatorio:
 
     @property
     def filtros_ativos(self) -> list[tuple[str, str]]:
-        rotulos = {"tipo": "Tipo", "departamento": "Departamento", "local": "Local",
+        rotulos = {"tipo": "Tipo", "departamento": "Departamento", "local": "Local", "devolvido": "Devolução",
                    "motivo": "Motivo", "tecnico": "Técnico"}
         return [(rotulos[k], v) for k, v in self.filtros.items() if v]
 
@@ -185,7 +195,14 @@ def gerar(tipo: str, inicio: date, fim: date, filtros: dict | None = None) -> Re
             "motivo": _texto(getattr(nota, "motivo", "")),
             "tecnico": _nome_pessoa(getattr(nota, "criador", None)),
         }
+        try:
+            from app.services.devolucao_service import _registos_brutos
+
+            devolvidos = {r["item_id"]: r for r in _registos_brutos(tipo, nota)}
+        except Exception:  # noqa: BLE001 — o relatório não depende disto
+            devolvidos = {}
         for item in getattr(nota, "itens", None) or []:
+            dev = devolvidos.get(str(item.id))
             unidade = {
                 **base,
                 "tipo": _texto(getattr(item, "tipo_item", "")) or "Outro",
@@ -193,6 +210,9 @@ def gerar(tipo: str, inicio: date, fim: date, filtros: dict | None = None) -> Re
                 "numero_serie": _texto(getattr(item, "numero_serie", "")),
                 "numero_sap": _texto(getattr(item, "numero_sap", "")),
                 "quantidade": 1,
+                "foi_devolvido": dev is not None,
+                "data_devolucao": dev["data"] if dev else None,
+                "devolvido": DEVOLVIDO_SIM if dev else DEVOLVIDO_NAO,
             }
             # Uma linha por unidade: um item "5 × Mouse" passa a 5 linhas, para
             # que cada linha do detalhe seja um equipamento e os totais batam.
@@ -201,6 +221,7 @@ def gerar(tipo: str, inicio: date, fim: date, filtros: dict | None = None) -> Re
     # Opções dos filtros: valores existentes no período (antes de filtrar),
     # para nunca oferecer uma escolha que dá zero resultados.
     opcoes = {k: sorted({l[k] for l in no_periodo if l[k]}, key=str.lower) for k in FILTROS_TEXTO}
+    opcoes["devolvido"] = [DEVOLVIDO_SIM, DEVOLVIDO_NAO]
     # Tipo: a mesma lista (e ordem) do dropdown «Material a entregar» dos
     # formulários; tipos antigos que já não estão na lista mas existem nas
     # notas do período vão no fim, para continuarem filtráveis.
