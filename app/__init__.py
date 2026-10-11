@@ -165,6 +165,13 @@ def _registar_contexto(app):
         return url_for("static", filename=filename, v=versao)
 
     @app.template_global()
+    def titulo_item(tipo_item, descricao):
+        """'Carregador — Dell' — tipo e descrição do material nas notas."""
+        from app.utils.itens import titulo_item as _titulo
+
+        return _titulo(tipo_item, descricao)
+
+    @app.template_global()
     def pode_registar_devolucao(nota):
         from flask_login import current_user
 

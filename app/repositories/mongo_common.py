@@ -88,9 +88,11 @@ class ItemMongoAdapterBase:
         self.quantidade = doc.get("quantidade", 1)
 
     def descricao_impressa(self):
+        from app.utils.itens import titulo_item
+
         serie = self.numero_serie or "N/A"
         sap = self.numero_sap or "N/A"
-        return f"{self.descricao} — Nr. Série: {serie} | SAP: {sap}"
+        return f"{titulo_item(self.tipo_item, self.descricao)} — Nr. Série: {serie} | SAP: {sap}"
 
 
 def doc_item(item: dict, *, extra: dict | None = None) -> dict:

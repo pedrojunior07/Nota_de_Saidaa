@@ -50,7 +50,9 @@ def _linhas_item(item):
     própria linha para nunca ficarem ambíguos ou difíceis de ler."""
     serie = item.numero_serie or "N/A"
     sap = item.numero_sap or "N/A"
-    return (item.descricao or item.tipo_item), f"Nr. Série: {serie}", f"SAP: {sap}"
+    from app.utils.itens import titulo_item
+
+    return titulo_item(item.tipo_item, item.descricao), f"Nr. Série: {serie}", f"SAP: {sap}"
 
 
 def _wrap(c, texto, fonte, tamanho, largura_max):

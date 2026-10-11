@@ -25,7 +25,9 @@ class ItemEntrega(db.Model):
         escondidos ou ambíguos dentro do texto."""
         serie = self.numero_serie or "N/A"
         sap = self.numero_sap or "N/A"
-        return f"{self.descricao} — Nr. Série: {serie} | SAP: {sap}"
+        from app.utils.itens import titulo_item
+
+        return f"{titulo_item(self.tipo_item, self.descricao)} — Nr. Série: {serie} | SAP: {sap}"
 
     def __repr__(self):
         return f"<ItemEntrega {self.tipo_item} x{self.quantidade}>"
