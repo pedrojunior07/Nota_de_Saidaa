@@ -124,6 +124,12 @@
             if (!resp.ok) throw new Error(json.error || "Não foi possível registar a devolução.");
             atualizarIcone(json.estado);
             modal.close();
+            if (atual.botao?.hasAttribute("data-devolucao-recarregar")) {
+                // Página de detalhe: mostrar logo o registo no painel «Devolução».
+                sessionStorage.setItem("abrirPainelDevolucao", "1");
+                window.location.reload();
+                return;
+            }
             globalThis.showToast?.(
                 json.estado === "total" ? "Devolução registada: todos os itens devolvidos." : "Devolução registada.",
                 "success");
@@ -138,9 +144,16 @@
         if (ev.target.closest("[data-dev-fechar]") || ev.target === modal) modal.close();
     });
 
+    // Depois de registar no detalhe, reabrir o painel «Devolução».
+    if (sessionStorage.getItem("abrirPainelDevolucao")) {
+        sessionStorage.removeItem("abrirPainelDevolucao");
+        const painel = document.getElementById("painelDevolucao");
+        if (painel) { painel.open = true; painel.scrollIntoView({ block: "nearest" }); }
+    }
+
     // O ícone está dentro de uma linha clicável: não deixar o clique abrir a nota.
     document.addEventListener("click", (ev) => {
-        const botao = ev.target.closest(".dev-icone");
+        const botao = ev.target.closest("[data-devolucao-url]");
         if (!botao) return;
         ev.preventDefault();
         ev.stopPropagation();

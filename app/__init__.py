@@ -165,6 +165,14 @@ def _registar_contexto(app):
         return url_for("static", filename=filename, v=versao)
 
     @app.template_global()
+    def pode_registar_devolucao(nota):
+        from flask_login import current_user
+
+        from app.services.devolucao_service import pode_registar
+
+        return current_user.is_authenticated and pode_registar(current_user, nota)
+
+    @app.template_global()
     def estado_devolucao(tipo, nota):
         """'nenhuma' | 'parcial' | 'total' | None — ícone da lista de notas."""
         from app.services.devolucao_service import estado_devolucao as _estado

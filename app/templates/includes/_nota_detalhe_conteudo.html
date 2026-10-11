@@ -248,7 +248,15 @@
                 {% if registo.observacao %}<div class="text-muted">{{ registo.observacao }}</div>{% endif %}
             </div>
             {% else %}
-            <p class="text-muted small mb-0">Sem devoluções registadas. Registe-as pelo ícone <i class="bi bi-arrow-return-left"></i> na lista de notas.</p>
+            <div class="dev-vazio">
+                <p class="text-muted small mb-0">Sem devoluções registadas.</p>
+                {% if pode_registar_devolucao(nota) %}
+                <button type="button" class="btn btn-sm btn-navy" data-devolucao-url="{{ url_for(request.blueprint ~ '.devolucao', nota_id=nota.id) }}"
+                        data-devolucao-recarregar>
+                    <i class="bi bi-arrow-return-left" aria-hidden="true"></i> Registar devolução
+                </button>
+                {% endif %}
+            </div>
             {% endfor %}
         </details>
         {% endif %}
